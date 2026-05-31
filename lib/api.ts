@@ -16,6 +16,7 @@ export async function getPaginatedVideosApi(params: {
   page?: number;
   limit?: number;
   sort?: "recent" | "most_viewed" | "top_rated" | "long_duration" | "short_duration";
+  q?: string;
 }): Promise<PaginatedVideosResponse> {
   const page = Math.max(1, params.page || 1);
   const limit = Math.max(1, params.limit || 20);
@@ -26,6 +27,9 @@ export async function getPaginatedVideosApi(params: {
     limit: String(limit),
     sort,
   });
+  if (params.q?.trim()) {
+    query.set("q", params.q.trim());
+  }
   try {
     const response = await fetch(`${BACKEND_URL}/api/videos?${query.toString()}`, { cache: "no-store" });
     if (!response.ok) {

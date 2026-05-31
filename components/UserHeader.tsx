@@ -2,16 +2,37 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
 import { FiSearch, FiSun, FiMoon, FiMenu, FiX, FiGrid, FiUser } from "react-icons/fi";
 import { VIEWER_AUTH_CHANGED_EVENT, getViewerUser, ViewerUser } from "../lib/auth";
 
 type ThemeMode = "light" | "dark";
 
+const Logo = ({ compact = false, onError }: { compact?: boolean; onError: () => void }) => (
+  <Link href="/" className="flex shrink-0 items-center font-bold" aria-label="Go to home">
+    <div
+      className={`flex items-center justify-center ${compact ? "h-[35px] w-[135px]" : "h-[42px] w-[162px]"}`}
+    >
+      <Image
+        src="/logo.png"
+        alt="xHub4u logo"
+        width={270}
+        height={70}
+        priority
+        className="w-full object-contain"
+        style={{ height: "auto" }}
+        onError={onError}
+      />
+    </div>
+  </Link>
+);
+
 export default function UserHeader() {
+  const router = useRouter();
   const [theme, setTheme] = useState<ThemeMode>("light");
-  const [searchType, setSearchType] = useState("title");
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [viewer, setViewer] = useState<ViewerUser | null>(null);
   const [logoUnavailable, setLogoUnavailable] = useState(false);
 
@@ -42,6 +63,13 @@ export default function UserHeader() {
     };
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
+
   const toggleTheme = () => {
     const nextTheme: ThemeMode = theme === "light" ? "dark" : "light";
     setTheme(nextTheme);
@@ -49,32 +77,91 @@ export default function UserHeader() {
     applyTheme(nextTheme);
   };
 
+  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    setMobileMenuOpen(false);
+    router.push(`/search?q=${encodeURIComponent(query)}`);
+  };
+
+  const searchForm = (variant: "desktop" | "mobile") => (
+    <form
+      onSubmit={handleSearch}
+      className={variant === "desktop" ? "flex w-full max-w-2xl items-center gap-2" : "space-y-2"}
+    >
+      <div className={`relative ${variant === "desktop" ? "min-w-0 flex-1" : "w-full"}`}>
+        <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 yt-muted" />
+        <input
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          className="yt-input w-full rounded-full py-2 pl-9 pr-4 text-sm outline-none"
+          placeholder="Search by video ID, title, or category"
+        />
+      </div>
+      <button
+        type="submit"
+        className={
+          variant === "desktop"
+            ? "shrink-0 rounded-full bg-[var(--brand)] px-5 py-2 text-sm font-semibold text-white"
+            : "w-full rounded-full bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-white"
+        }
+      >
+        Search
+      </button>
+    </form>
+  );
+
+  const accountActions = (showLabel = false) => (
+    <>
+      {showLabel ? (
+        <span className="yt-muted hidden text-sm xl:inline">{viewer ? `Hi, ${viewer.name}` : "Guest"}</span>
+      ) : null}
+      {viewer ? (
+        <Link
+          href="/dashboard"
+          className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
+          aria-label="Dashboard"
+          title="Dashboard"
+        >
+          <FiGrid />
+        </Link>
+      ) : (
+        <Link
+          href="/auth/login"
+          className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
+          aria-label="Login"
+          title="Login"
+        >
+          <FiUser />
+        </Link>
+      )}
+      <button
+        onClick={toggleTheme}
+        className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
+        aria-label="Toggle theme"
+      >
+        {theme === "light" ? <FiMoon /> : <FiSun />}
+      </button>
+    </>
+  );
+
   return (
     <header className="yt-header">
       <div className="mx-auto max-w-[1400px] px-3 py-3 sm:px-6">
-        <div className="hidden items-center lg:grid lg:grid-cols-3">
-          <div className="flex justify-start">
-            <Link href="/" className="flex items-center gap-2 font-bold" aria-label="Go to home">
-              {logoUnavailable ? (
-                <span className="text-sm">xHub4u</span>
-              ) : (
-                <div className="flex h-[42px] w-[162px] items-center justify-center">
-                  <Image
-                    src="/logo.png"
-                    alt="xHub4u logo"
-                    width={270}
-                    height={70}
-                    priority
-                    className="w-full object-contain"
-                    style={{ height: "auto" }}
-                    onError={() => setLogoUnavailable(true)}
-                  />
-                </div>
-              )}
+        <div className="hidden items-center gap-4 lg:flex">
+          {logoUnavailable ? (
+            <Link href="/" className="shrink-0 text-sm font-bold">
+              xHub4u
             </Link>
-          </div>
+          ) : (
+            <Logo onError={() => setLogoUnavailable(true)} />
+          )}
 
-          <nav className="flex items-center justify-center gap-2 text-sm">
+          <div className="flex min-w-0 flex-1 justify-center px-2">{searchForm("desktop")}</div>
+
+          <nav className="flex shrink-0 items-center gap-1 text-sm">
             <Link href="/" className="rounded px-3 py-2 hover:bg-[var(--surface-muted)]">
               Home
             </Link>
@@ -83,73 +170,20 @@ export default function UserHeader() {
             </Link>
           </nav>
 
-          <div className="flex items-center justify-end gap-2">
-            <span className="yt-muted text-sm">{viewer ? `Hi, ${viewer.name}` : "Guest"}</span>
-            {viewer ? (
-              <Link
-                href="/dashboard"
-                className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
-                aria-label="Dashboard"
-                title="Dashboard"
-              >
-                <FiGrid />
-              </Link>
-            ) : (
-              <Link
-                href="/auth/login"
-                className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
-                aria-label="Login"
-                title="Login"
-              >
-                <FiUser />
-              </Link>
-            )}
-            <button
-              onClick={() => setMenuOpen(true)}
-              className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
-              aria-label="Open search"
-            >
-              <FiSearch />
-            </button>
-            <button
-              onClick={toggleTheme}
-              className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
-              aria-label="Toggle theme"
-            >
-              {theme === "light" ? <FiMoon /> : <FiSun />}
-            </button>
-          </div>
+          <div className="flex shrink-0 items-center gap-2">{accountActions(true)}</div>
         </div>
 
         <div className="flex items-center justify-between gap-3 lg:hidden">
-          <Link href="/" className="flex items-center gap-2 font-bold" aria-label="Go to home">
-            {logoUnavailable ? (
-              <span className="text-sm">xHub4u</span>
-            ) : (
-              <div className="flex h-[35px] w-[135px] items-center justify-center">
-                <Image
-                  src="/logo.png"
-                  alt="xHub4u logo"
-                  width={270}
-                  height={70}
-                  priority
-                  className="w-full object-contain"
-                  style={{ height: "auto" }}
-                  onError={() => setLogoUnavailable(true)}
-                />
-              </div>
-            )}
-          </Link>
+          {logoUnavailable ? (
+            <Link href="/" className="text-sm font-bold">
+              xHub4u
+            </Link>
+          ) : (
+            <Logo compact onError={() => setLogoUnavailable(true)} />
+          )}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setMenuOpen(true)}
-              className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
-              aria-label="Open search"
-            >
-              <FiSearch />
-            </button>
-            <button
-              onClick={() => setMenuOpen(true)}
+              onClick={() => setMobileMenuOpen(true)}
               className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
               aria-label="Open menu"
             >
@@ -159,23 +193,23 @@ export default function UserHeader() {
         </div>
       </div>
 
-      {menuOpen ? (
+      {mobileMenuOpen ? (
         <button
-          className="fixed inset-0 z-[60] bg-black/40"
+          className="fixed inset-0 z-[60] bg-black/40 lg:hidden"
           aria-label="Close menu overlay"
-          onClick={() => setMenuOpen(false)}
+          onClick={() => setMobileMenuOpen(false)}
         />
       ) : null}
 
       <aside
-        className={`fixed right-0 top-0 z-[70] h-full w-[300px] max-w-[85vw] border-l border-[var(--border)] bg-[var(--surface)] p-4 shadow-2xl transition-transform duration-300 ${
-          menuOpen ? "translate-x-0" : "translate-x-full"
+        className={`fixed right-0 top-0 z-[70] h-full w-[300px] max-w-[85vw] border-l border-[var(--border)] bg-[var(--surface)] p-4 shadow-2xl transition-transform duration-300 lg:hidden ${
+          mobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="mb-4 flex items-center justify-between">
           <p className="text-lg font-semibold">Menu</p>
           <button
-            onClick={() => setMenuOpen(false)}
+            onClick={() => setMobileMenuOpen(false)}
             className="rounded-full p-2 hover:bg-[var(--surface-muted)]"
             aria-label="Close menu"
           >
@@ -183,49 +217,26 @@ export default function UserHeader() {
           </button>
         </div>
 
-        <div className="mb-5 space-y-2">
-          <div className="relative">
-            <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 yt-muted" />
-            <input
-              className="yt-input w-full rounded-full py-2 pl-9 pr-4 text-sm outline-none"
-              placeholder="Search videos (UI only)"
-            />
-          </div>
-          <select
-            value={searchType}
-            onChange={(event) => setSearchType(event.target.value)}
-            className="yt-input w-full rounded-full px-3 py-2 text-sm outline-none"
-          >
-            <option value="title">Title</option>
-            <option value="category">Category</option>
-            <option value="latest">Latest</option>
-          </select>
-        </div>
+        <div className="mb-5">{searchForm("mobile")}</div>
 
-        <nav className="mb-5 space-y-1 text-sm lg:hidden">
+        <nav className="mb-5 space-y-1 text-sm">
           <Link
             href="/"
-            onClick={() => setMenuOpen(false)}
+            onClick={() => setMobileMenuOpen(false)}
             className="block rounded px-3 py-2 hover:bg-[var(--surface-muted)]"
           >
             Home
           </Link>
           <Link
             href="/categories"
-            onClick={() => setMenuOpen(false)}
+            onClick={() => setMobileMenuOpen(false)}
             className="block rounded px-3 py-2 hover:bg-[var(--surface-muted)]"
           >
             Categories
           </Link>
         </nav>
 
-        <button
-          onClick={toggleTheme}
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-[var(--border)] px-3 py-2 text-sm hover:bg-[var(--surface-muted)]"
-        >
-          {theme === "light" ? <FiMoon /> : <FiSun />}
-          {theme === "light" ? "Dark Mode" : "Light Mode"}
-        </button>
+        <div className="flex items-center gap-2">{accountActions(false)}</div>
       </aside>
     </header>
   );
