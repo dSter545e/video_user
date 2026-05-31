@@ -7,6 +7,7 @@ import UserAnalyticsTracker from "../components/UserAnalyticsTracker";
 import { AuthProvider } from "../components/AuthProvider";
 import AgeGateModal from "../components/AgeGateModal";
 import { SEO, absoluteUrl } from "../lib/seo";
+import { getSiteVerificationMetadata } from "../lib/siteVerification";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,6 +18,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const siteVerification = getSiteVerificationMetadata();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SEO.siteUrl),
@@ -47,6 +50,7 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     apple: "/favicon.ico",
   },
+  ...siteVerification,
 };
 
 export default function RootLayout({
