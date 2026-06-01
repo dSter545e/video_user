@@ -15,6 +15,7 @@ import {
 } from "../lib/theme";
 import HeaderSearchBar from "./HeaderSearchBar";
 import HeaderSearchDropdown from "./HeaderSearchDropdown";
+import MobileGridSidebarControl from "./MobileGridSidebarControl";
 
 const Logo = ({ compact = false, onError }: { compact?: boolean; onError: () => void }) => (
   <Link href="/" className="flex shrink-0 items-center font-bold" aria-label="Go to home">
@@ -186,6 +187,8 @@ export default function UserHeader() {
             <FiX />
           </button>
         </div>
+
+        <MobileGridSidebarControl />
 
         <nav className="mb-5 space-y-1 text-sm">
           <Link

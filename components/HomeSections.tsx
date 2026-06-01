@@ -9,6 +9,7 @@ import { Category, Video } from "../lib/types";
 import { getRecommendedVideosApi } from "../lib/api";
 import { getOrCreateVisitorId } from "../lib/analytics";
 import { VIEWER_AUTH_CHANGED_EVENT, getViewerUser } from "../lib/auth";
+import { useMobileGrid } from "./MobileGridProvider";
 
 type HomeSectionsProps = {
   videos: Video[];
@@ -24,15 +25,21 @@ const sortByDateDesc = (items: Video[]) =>
 
 const sortByViewsDesc = (items: Video[]) => [...items].sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0));
 
+const HOME_SECTION_VIDEO_LIMIT = 20;
+
 export default function HomeSections({ videos, categories }: HomeSectionsProps) {
+  const { gridClassName } = useMobileGrid();
   const [recentViewed, setRecentViewed] = useState<Video[]>([]);
   const [personalizedRecommended, setPersonalizedRecommended] = useState<Video[]>([]);
   const [viewerLoggedIn, setViewerLoggedIn] = useState(false);
 
-  const latestVideos = useMemo(() => sortByDateDesc(videos).slice(0, 8), [videos]);
-  const mostViewedVideos = useMemo(() => sortByViewsDesc(videos).slice(0, 8), [videos]);
+  const latestVideos = useMemo(() => sortByDateDesc(videos).slice(0, HOME_SECTION_VIDEO_LIMIT), [videos]);
+  const mostViewedVideos = useMemo(() => sortByViewsDesc(videos).slice(0, HOME_SECTION_VIDEO_LIMIT), [videos]);
   const recommendedVideos = useMemo(
-    () => (personalizedRecommended.length ? personalizedRecommended.slice(0, 8) : videos.slice(0, 8)),
+    () =>
+      personalizedRecommended.length
+        ? personalizedRecommended.slice(0, HOME_SECTION_VIDEO_LIMIT)
+        : videos.slice(0, HOME_SECTION_VIDEO_LIMIT),
     [personalizedRecommended, videos]
   );
 
@@ -64,7 +71,7 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
   useEffect(() => {
     const loadRecommendations = async () => {
       const visitorId = getOrCreateVisitorId();
-      const data = await getRecommendedVideosApi({ visitorId, limit: 12 });
+      const data = await getRecommendedVideosApi({ visitorId, limit: HOME_SECTION_VIDEO_LIMIT });
       if (data.length) setPersonalizedRecommended(data);
     };
     void loadRecommendations();
@@ -80,7 +87,7 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
           </Link>
         </div>
         {recommendedVideos.length ? (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+          <div className={gridClassName}>
             {recommendedVideos.map((video, index) => (
               <div key={video._id} className="contents">
                 <VideoCard video={video} />
@@ -103,7 +110,7 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
           </Link>
         </div>
         {latestVideos.length ? (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+          <div className={gridClassName}>
             {latestVideos.map((video, index) => (
               <div key={video._id} className="contents">
                 <VideoCard video={video} />
@@ -124,7 +131,7 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
           </Link>
         </div>
         {mostViewedVideos.length ? (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+          <div className={gridClassName}>
             {mostViewedVideos.map((video, index) => (
               <div key={video._id} className="contents">
                 <VideoCard video={video} />

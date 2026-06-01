@@ -87,20 +87,14 @@ button {
 }
 
 .video-card {
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
-  transition:
-    transform 0.25s ease,
-    border-color 0.25s ease,
-    box-shadow 0.25s ease;
+  transition: transform 0.25s ease;
 }
 
 .video-card:hover {
   transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--brand) 35%, var(--border));
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.14);
 }
 
 .video-card__media {
@@ -153,7 +147,7 @@ button {
   right: 8px;
   bottom: 8px;
   z-index: 4;
-  border-radius: 6px;
+  border-radius: 0;
   background: rgba(0, 0, 0, 0.82);
   padding: 3px 7px;
   font-size: 11px;
@@ -168,7 +162,7 @@ button {
   left: 8px;
   top: 8px;
   z-index: 4;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--brand);
   padding: 3px 10px;
   font-size: 10px;

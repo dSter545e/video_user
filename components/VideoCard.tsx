@@ -384,7 +384,7 @@ export default function VideoCard({ video }: VideoCardProps) {
 
         {!previewActive && canPreview ? (
           <span className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center opacity-0 transition group-hover:opacity-100">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
+            <span className="flex h-12 w-12 items-center justify-center bg-black/55 text-white backdrop-blur-sm">
               <FiPlay className="ml-0.5 h-5 w-5" />
             </span>
           </span>

@@ -10,6 +10,7 @@ import { Video, VideoComment } from "../lib/types";
 import { getViewerUser } from "../lib/auth";
 import { emitAnalyticsEvent } from "../lib/analytics";
 import AdSlot, { AdInFeed } from "./AdSlot";
+import { useMobileGrid } from "./MobileGridProvider";
 
 type VideoWatchClientProps = {
   initialVideo: Video;
@@ -26,6 +27,7 @@ const getUserIdentifier = () => {
 };
 
 export default function VideoWatchClient({ initialVideo, initialComments }: VideoWatchClientProps) {
+  const { gridClassName } = useMobileGrid();
   const [video, setVideo] = useState(initialVideo);
   const [recommendedVideos, setRecommendedVideos] = useState<Video[]>(initialVideo.recommendedVideos || []);
   const [comments, setComments] = useState(initialComments);
@@ -237,7 +239,7 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
         <section className="mt-8">
           <AdSlot slot="watch_before_recommendations" />
           <h2 className="mb-3 text-xl font-semibold">Recommended For You</h2>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+          <div className={gridClassName}>
             {recommendedVideos.map((item, index) => (
               <div key={item._id} className="contents">
                 <VideoCard video={item} />
