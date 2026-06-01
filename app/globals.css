@@ -169,7 +169,21 @@ button {
   backdrop-filter: blur(2px);
 }
 
-.popup-ad-modal {
-  max-height: min(90vh, 640px);
-  overflow-y: auto;
+/* All ad slots: center embeds, images, and third-party iframes */
+.ad-slot,
+[data-ad-slot] {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.ad-slot iframe,
+.ad-slot img,
+.ad-slot ins,
+.ad-slot a,
+.ad-slot > div {
+  margin-left: auto;
+  margin-right: auto;
 }

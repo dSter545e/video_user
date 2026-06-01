@@ -6,15 +6,15 @@ import { SEO } from "../../lib/seo";
 
 export const metadata: Metadata = {
   title: "Categories",
-  description: "Browse featured video categories and discover videos by topic.",
+  description: SEO.defaultDescription,
   openGraph: {
     title: `${SEO.siteName} - Categories`,
-    description: "Browse featured video categories and discover videos by topic.",
+    description: SEO.defaultDescription,
     url: `${SEO.siteUrl}/categories`,
   },
   twitter: {
     title: `${SEO.siteName} - Categories`,
-    description: "Browse featured video categories and discover videos by topic.",
+    description: SEO.defaultDescription,
   },
 };
 

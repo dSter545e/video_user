@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SEO } from "../lib/seo";
 
 export default function UserFooter() {
   const year = new Date().getFullYear();
@@ -9,9 +10,7 @@ export default function UserFooter() {
         <div className="grid gap-6 text-sm md:grid-cols-3">
           <div>
             <h3 className="mb-2 text-base font-semibold">About</h3>
-            <p className="yt-muted">
-              xHub4u is a modern video platform to discover trending, latest, and category-based content.
-            </p>
+            <p className="yt-muted leading-relaxed">{SEO.defaultDescription}</p>
           </div>
 
           <div>

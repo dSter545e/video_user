@@ -8,10 +8,9 @@ import AdBanner from "./AdBanner";
 type AdSlotProps = {
   slot: AdSlotId;
   className?: string;
-  label?: boolean;
 };
 
-export default function AdSlot({ slot, className = "", label = false }: AdSlotProps) {
+export default function AdSlot({ slot, className = "" }: AdSlotProps) {
   const { getAdsForSlot, loading } = useAds();
   const ads = getAdsForSlot(slot);
   const ad = ads[0];
@@ -19,8 +18,7 @@ export default function AdSlot({ slot, className = "", label = false }: AdSlotPr
   if (loading || !ad) return null;
 
   return (
-    <div className={`my-4 ${className}`} data-ad-slot={slot}>
-      {label ? <p className="yt-muted mb-1 text-center text-[10px] uppercase tracking-wide">Advertisement</p> : null}
+    <div className={`my-3 flex w-full justify-center text-center ${className}`.trim()} data-ad-slot={slot}>
       <AdBanner ad={ad} />
     </div>
   );
@@ -43,8 +41,10 @@ export function AdInFeed({ index, className = "" }: AdInFeedProps) {
   const rotated = ads[index % ads.length] || ad;
 
   return (
-    <div className={`col-span-1 md:col-span-2 lg:col-span-4 ${className}`} data-ad-slot="listing_in_feed">
-      <p className="yt-muted mb-1 text-center text-[10px] uppercase tracking-wide">Advertisement</p>
+    <div
+      className={`col-span-1 flex w-full items-center justify-center text-center md:col-span-2 lg:col-span-4 ${className}`}
+      data-ad-slot="listing_in_feed"
+    >
       <AdBanner ad={rotated} />
     </div>
   );

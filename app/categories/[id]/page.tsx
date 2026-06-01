@@ -22,9 +22,7 @@ export async function generateMetadata({ params }: CategoryVideosPageProps): Pro
   const categories = await getCategoriesApi();
   const category = categories.find((item) => item._id === id || item.slug === id);
   const title = category?.name ? `${category.name} Videos` : "Category Videos";
-  const description = category?.name
-    ? `Watch videos from ${category.name} category on ${SEO.siteName}.`
-    : `Watch category videos on ${SEO.siteName}.`;
+  const description = SEO.defaultDescription;
   const categoryPath = `/categories/${category?.slug || id}`;
 
   return {

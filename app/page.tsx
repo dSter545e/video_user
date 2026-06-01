@@ -5,15 +5,15 @@ import { SEO } from "../lib/seo";
 
 export const metadata: Metadata = {
   title: "Home",
-  description: "Discover recommended, latest, and most viewed videos by category.",
+  description: SEO.defaultDescription,
   openGraph: {
-    title: `${SEO.siteName} - Home`,
-    description: "Discover recommended, latest, and most viewed videos by category.",
+    title: SEO.defaultTitle,
+    description: SEO.defaultDescription,
     url: SEO.siteUrl,
   },
   twitter: {
-    title: `${SEO.siteName} - Home`,
-    description: "Discover recommended, latest, and most viewed videos by category.",
+    title: SEO.defaultTitle,
+    description: SEO.defaultDescription,
   },
 };
 

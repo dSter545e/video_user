@@ -35,9 +35,9 @@ export default function VideoPlayerWithAds(props: VideoPlayerWithAdsProps) {
         {showMainPlayer ? <VideoJsPlayer {...props} /> : <div className="aspect-video w-full bg-black" aria-hidden />}
       </div>
       {!loading && overlayAd && prerollDone ? (
-        <div className="pointer-events-none absolute bottom-14 right-2 z-10 max-w-[min(100%,320px)]">
-          <div className="pointer-events-auto">
-            <AdBanner ad={overlayAd} className="border-white/20 bg-black/80 p-1" />
+        <div className="pointer-events-none absolute bottom-14 left-1/2 z-10 w-full max-w-[min(100%,320px)] -translate-x-1/2">
+          <div className="pointer-events-auto flex justify-center">
+            <AdBanner ad={overlayAd} />
           </div>
         </div>
       ) : null}

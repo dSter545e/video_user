@@ -24,6 +24,8 @@ export default function AdBanner({ ad, className = "" }: AdBannerProps) {
     });
   }, [ad._id, ad.htmlContent, ad.type]);
 
+  const wrapperClass = `ad-slot mx-auto flex w-full max-w-full flex-col items-center justify-center text-center ${className}`.trim();
+
   if (ad.type === "image" && ad.imageUrl) {
     const image = (
       <Image
@@ -31,14 +33,14 @@ export default function AdBanner({ ad, className = "" }: AdBannerProps) {
         alt={ad.altText || "Advertisement"}
         width={728}
         height={90}
-        className="mx-auto h-auto max-h-[250px] w-full max-w-full object-contain"
+        className="mx-auto h-auto w-full max-w-full object-contain"
         unoptimized
       />
     );
     return (
-      <div className={`ad-slot flex justify-center overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-2 ${className}`}>
+      <div className={wrapperClass}>
         {ad.linkUrl ? (
-          <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer sponsored" className="block w-full">
+          <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer sponsored" className="mx-auto block w-fit max-w-full">
             {image}
           </a>
         ) : (
@@ -52,7 +54,7 @@ export default function AdBanner({ ad, className = "" }: AdBannerProps) {
     return (
       <div
         ref={htmlRef}
-        className={`ad-slot overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-2 ${className}`}
+        className={wrapperClass}
         dangerouslySetInnerHTML={{ __html: ad.htmlContent }}
       />
     );

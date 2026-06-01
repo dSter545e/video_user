@@ -52,22 +52,16 @@ export default function PopupAdModal() {
 
   return (
     <div className="popup-ad-overlay fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
-      <div
-        className="popup-ad-modal relative w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Advertisement"
-      >
+      <div className="relative w-full max-w-lg text-center" role="dialog" aria-modal="true" aria-label="Advertisement">
         <button
           type="button"
           onClick={() => setVisible(false)}
-          className="absolute right-2 top-2 z-10 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 hover:bg-[var(--surface-muted)]"
-          aria-label="Close advertisement"
+          className="absolute -right-1 -top-1 z-10 rounded-full bg-black/80 p-2 text-white hover:bg-black"
+          aria-label="Close"
         >
           <FiX />
         </button>
-        <p className="yt-muted mb-2 pr-8 text-center text-[10px] uppercase tracking-wide">Advertisement</p>
-        <AdBanner ad={popupAd} className="border-0 bg-transparent" />
+        <AdBanner ad={popupAd} />
       </div>
     </div>
   );

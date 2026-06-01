@@ -66,10 +66,8 @@ export default function PrerollAd({ ad, onComplete }: PrerollAdProps) {
           onEnded={onComplete}
         />
       ) : (
-        <div className="flex flex-1 items-center justify-center p-4">
-          <div className="w-full max-w-3xl">
-            <AdBanner ad={ad} className="border-0 bg-transparent p-0" />
-          </div>
+        <div className="flex flex-1 items-center justify-center">
+          <AdBanner ad={ad} />
         </div>
       )}
 
@@ -86,10 +84,6 @@ export default function PrerollAd({ ad, onComplete }: PrerollAdProps) {
           Skip Ad
         </button>
       </div>
-
-      <p className="absolute bottom-2 left-2 rounded bg-black/60 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white">
-        Advertisement
-      </p>
     </div>
   );
 }
