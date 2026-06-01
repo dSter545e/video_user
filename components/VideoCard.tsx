@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { MouseEvent, TouchEvent, useEffect, useRef, useState } from "react";
-import { FiPause, FiPlay } from "react-icons/fi";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FiPlay } from "react-icons/fi";
 import { Video } from "../lib/types";
 
 const formatDuration = (seconds?: number, fallback?: string) => {
@@ -18,16 +19,11 @@ const formatDuration = (seconds?: number, fallback?: string) => {
   return `${mins}:${String(secs).padStart(2, "0")}`;
 };
 
-const formatAddedDate = (value?: string) => {
-  if (!value) return "recently";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "recently";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(parsed);
+const formatViews = (count?: number) => {
+  const value = count || 0;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M views`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\.0$/, "")}K views`;
+  return `${value} views`;
 };
 
 type VideoCardProps = {
@@ -36,42 +32,28 @@ type VideoCardProps = {
 
 type HlsConstructor = typeof import("hls.js").default;
 
-const isSlowNetwork = () => {
-  if (typeof navigator === "undefined") return false;
-  const connection = (navigator as Navigator & { connection?: { effectiveType?: string; downlink?: number } }).connection;
-  if (!connection) return false;
-  const slowTypes = ["slow-2g", "2g", "3g"];
-  if (connection.effectiveType && slowTypes.includes(connection.effectiveType)) {
-    return true;
-  }
-  if (typeof connection.downlink === "number" && connection.downlink > 0 && connection.downlink < 1.5) {
-    return true;
-  }
-  return false;
-};
+const isHlsSource = (url: string) => /\.m3u8(\?|$)/i.test(url);
 
-const isHlsSource = (url: string) => url.includes(".m3u8");
+const isPlayableUrl = (url?: string) => Boolean(url && url !== "about:blank" && url.startsWith("http"));
 
 const pickPreviewSource = (video: Video) => {
-  const variants = [...(video.qualityVariants || [])].sort((a, b) => (a.height || 0) - (b.height || 0));
-  if (!variants.length) return video.videoUrl;
+  const variants = [...(video.qualityVariants || [])]
+    .filter((variant) => isPlayableUrl(variant.url))
+    .sort((a, b) => (a.height || 0) - (b.height || 0));
 
-  if (isSlowNetwork()) {
-    const low = variants.find((variant) => (variant.height || 0) > 0 && (variant.height || 0) <= 360);
-    return low?.url || variants[0].url || video.videoUrl;
-  }
+  const progressive = variants.find((variant) => !isHlsSource(variant.url));
+  if (progressive?.url) return progressive.url;
 
-  const preferred =
-    variants.find((variant) => (variant.height || 0) >= 360 && (variant.height || 0) <= 480) ||
-    variants.find((variant) => (variant.height || 0) > 0) ||
-    variants[0];
+  const lowHls = variants.find((variant) => (variant.height || 0) <= 480) || variants[0];
+  if (lowHls?.url) return lowHls.url;
 
-  return preferred?.url || video.videoUrl;
+  if (isPlayableUrl(video.videoUrl)) return video.videoUrl;
+  return "";
 };
 
 const buildPreviewSegments = (duration: number) => {
   if (!duration || Number.isNaN(duration) || duration <= 0) {
-    return [];
+    return [{ start: 0, end: 5 }];
   }
 
   const clipLength = Math.min(5, duration);
@@ -102,19 +84,39 @@ const buildPreviewSegments = (duration: number) => {
   return uniqueSegments;
 };
 
+const useHoverPreview = () => {
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const update = () => setEnabled(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return enabled;
+};
+
 export default function VideoCard({ video }: VideoCardProps) {
+  const router = useRouter();
+  const hoverPreview = useHoverPreview();
   const previewRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<InstanceType<HlsConstructor> | null>(null);
   const hlsModuleRef = useRef<HlsConstructor | null>(null);
   const activeSourceRef = useRef("");
   const segmentBoundsRef = useRef<Array<{ start: number; end: number }>>([]);
   const segmentIndexRef = useRef(0);
+  const loadingRef = useRef(false);
+  const mobilePinnedRef = useRef(false);
+
   const [previewActive, setPreviewActive] = useState(false);
-  const touchInteractingRef = useRef(false);
 
-  const canPreview = Boolean(video.videoUrl);
+  const previewSource = pickPreviewSource(video);
+  const canPreview = isPlayableUrl(previewSource);
+  const videoHref = `/videos/${video.slug || video._id}`;
 
-  const cleanupPreview = () => {
+  const cleanupPreview = useCallback(() => {
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
@@ -128,21 +130,41 @@ export default function VideoCard({ video }: VideoCardProps) {
     activeSourceRef.current = "";
     segmentBoundsRef.current = [];
     segmentIndexRef.current = 0;
-  };
+    loadingRef.current = false;
+    mobilePinnedRef.current = false;
+  }, []);
 
-  useEffect(() => cleanupPreview, []);
+  useEffect(() => cleanupPreview, [cleanupPreview]);
 
   const waitForLoadedMetadata = (videoElement: HTMLVideoElement) =>
-    new Promise<void>((resolve) => {
+    new Promise<void>((resolve, reject) => {
       if (Number.isFinite(videoElement.duration) && videoElement.duration > 0) {
         resolve();
         return;
       }
-      const onLoadedMetadata = () => {
+
+      const timeout = window.setTimeout(() => {
         videoElement.removeEventListener("loadedmetadata", onLoadedMetadata);
+        videoElement.removeEventListener("error", onError);
+        reject(new Error("Metadata timeout"));
+      }, 12000);
+
+      const onLoadedMetadata = () => {
+        window.clearTimeout(timeout);
+        videoElement.removeEventListener("loadedmetadata", onLoadedMetadata);
+        videoElement.removeEventListener("error", onError);
         resolve();
       };
+
+      const onError = () => {
+        window.clearTimeout(timeout);
+        videoElement.removeEventListener("loadedmetadata", onLoadedMetadata);
+        videoElement.removeEventListener("error", onError);
+        reject(new Error("Video load failed"));
+      };
+
       videoElement.addEventListener("loadedmetadata", onLoadedMetadata);
+      videoElement.addEventListener("error", onError);
     });
 
   const attachPreviewSource = async (videoElement: HTMLVideoElement, source: string) => {
@@ -160,33 +182,33 @@ export default function VideoCard({ video }: VideoCardProps) {
     videoElement.load();
 
     if (isHlsSource(source)) {
-      if (!hlsModuleRef.current) {
-        const module = await import("hls.js");
-        hlsModuleRef.current = module.default;
-      }
-      const Hls = hlsModuleRef.current;
-
-      if (Hls.isSupported()) {
+      if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+        videoElement.src = source;
+        videoElement.load();
+        await waitForLoadedMetadata(videoElement);
+      } else {
+        if (!hlsModuleRef.current) {
+          const module = await import("hls.js");
+          hlsModuleRef.current = module.default;
+        }
+        const Hls = hlsModuleRef.current;
+        if (!Hls.isSupported()) {
+          throw new Error("HLS is not supported");
+        }
         await new Promise<void>((resolve, reject) => {
           const hls = new Hls({
             enableWorker: true,
-            maxBufferLength: 8,
-            maxMaxBufferLength: 16,
+            maxBufferLength: 10,
+            maxMaxBufferLength: 20,
           });
           hlsRef.current = hls;
           hls.loadSource(source);
           hls.attachMedia(videoElement);
           hls.on(Hls.Events.MANIFEST_PARSED, () => resolve());
           hls.on(Hls.Events.ERROR, (_event, data) => {
-            if (data.fatal) reject(new Error("Preview stream failed"));
+            if (data.fatal) reject(new Error("HLS preview failed"));
           });
         });
-      } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
-        videoElement.src = source;
-        videoElement.load();
-        await waitForLoadedMetadata(videoElement);
-      } else {
-        throw new Error("HLS preview is not supported in this browser");
       }
     } else {
       videoElement.src = source;
@@ -204,65 +226,87 @@ export default function VideoCard({ video }: VideoCardProps) {
     videoElement.currentTime = segments[nextSegmentIndex].start;
     try {
       await videoElement.play();
-    } catch (_error) {
-      // Ignore autoplay rejection.
+    } catch {
+      // Autoplay blocked or interrupted.
     }
   };
 
-  const startPreview = async () => {
-    if (!previewRef.current || !video.videoUrl) return;
+  const prepareSegments = (videoElement: HTMLVideoElement) => {
+    const duration = videoElement.duration || video.durationSeconds || 0;
+    segmentBoundsRef.current = buildPreviewSegments(duration);
+    segmentIndexRef.current = 0;
+  };
+
+  const unlockPlayback = (videoElement: HTMLVideoElement) => {
+    videoElement.muted = true;
+    videoElement.defaultMuted = true;
+    videoElement.playsInline = true;
+    videoElement.setAttribute("playsinline", "");
+    videoElement.setAttribute("webkit-playsinline", "true");
+    void videoElement.play().catch(() => {});
+  };
+
+  const playPreview = useCallback(async (): Promise<boolean> => {
+    if (!canPreview || !previewRef.current || loadingRef.current) return false;
+
+    loadingRef.current = true;
     const videoElement = previewRef.current;
-    const sourceForPreview = pickPreviewSource(video);
+    setPreviewActive(true);
+    unlockPlayback(videoElement);
 
     try {
-      await attachPreviewSource(videoElement, sourceForPreview);
-      const duration = videoElement.duration || video.durationSeconds || 0;
-      segmentBoundsRef.current = buildPreviewSegments(duration);
-      segmentIndexRef.current = 0;
-      setPreviewActive(true);
+      await attachPreviewSource(videoElement, previewSource);
+      prepareSegments(videoElement);
       await jumpToSegment(videoElement, 0);
-    } catch (_error) {
+      return true;
+    } catch {
       cleanupPreview();
       setPreviewActive(false);
+      return false;
+    } finally {
+      loadingRef.current = false;
     }
-  };
+  }, [canPreview, cleanupPreview, previewSource]);
 
-  const stopPreview = () => {
+  const stopPreview = useCallback(() => {
     cleanupPreview();
     setPreviewActive(false);
+  }, [cleanupPreview]);
+
+  const startMobilePreview = () => {
+    if (!canPreview || loadingRef.current) return;
+    mobilePinnedRef.current = true;
+    void playPreview();
   };
 
-  const handleEnter = async () => {
-    if (touchInteractingRef.current || previewActive) return;
-    await startPreview();
+  const handleMediaPointerEnter = () => {
+    if (!hoverPreview || !canPreview) return;
+    void playPreview();
   };
 
-  const handleLeave = () => {
-    if (touchInteractingRef.current) return;
+  const handleMediaPointerLeave = () => {
+    if (!hoverPreview || !previewActive) return;
     stopPreview();
   };
 
-  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    if (!canPreview) return;
-    event.stopPropagation();
-    touchInteractingRef.current = true;
-    void startPreview();
-  };
-
-  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    stopPreview();
-    window.setTimeout(() => {
-      touchInteractingRef.current = false;
-    }, 400);
-  };
-
-  const handleCardClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (previewActive) {
-      event.preventDefault();
+  const handleMediaClick = () => {
+    if (hoverPreview) {
+      router.push(videoHref);
       stopPreview();
+      return;
     }
+
+    if (!canPreview) {
+      router.push(videoHref);
+      return;
+    }
+
+    if (previewActive) {
+      router.push(videoHref);
+      return;
+    }
+
+    startMobilePreview();
   };
 
   const handleTimeUpdate = async () => {
@@ -286,73 +330,79 @@ export default function VideoCard({ video }: VideoCardProps) {
   };
 
   return (
-    <Link
-      href={`/videos/${video.slug || video._id}`}
-      onClick={handleCardClick}
-      className="group block overflow-hidden border border-[var(--border)] bg-[var(--surface)] transition duration-300 hover:-translate-y-1 hover:border-[var(--brand)]/40 hover:shadow-[0_18px_36px_rgba(0,0,0,0.22)]"
-    >
-      <article>
-        <div
-          className="relative aspect-video w-full overflow-hidden bg-[var(--surface-muted)] touch-manipulation"
-          onMouseEnter={handleEnter}
-          onMouseLeave={handleLeave}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchEnd}
-        >
-          {video.thumbnail ? (
-            <Image
-              src={video.thumbnail}
-              alt={video.title}
-              fill
-              unoptimized
-              className={`object-cover object-center transition duration-500 group-hover:scale-105 ${previewActive ? "hidden" : "block"}`}
-              sizes="(max-width: 768px) 100vw, 25vw"
-            />
-          ) : (
-            <div
-              className={`absolute inset-0 items-center justify-center bg-[var(--surface-muted)] yt-muted ${
-                previewActive ? "hidden" : "flex"
-              }`}
-            >
-              No thumbnail
-            </div>
-          )}
-          {canPreview ? (
-            <video
-              ref={previewRef}
-              muted
-              playsInline
-              preload="none"
-              onTimeUpdate={handleTimeUpdate}
-              className={`absolute inset-0 h-full w-full object-cover object-center ${previewActive ? "block" : "hidden"}`}
-            />
-          ) : null}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent opacity-90 transition group-hover:opacity-100" />
-          <span className="absolute bottom-2 right-2 rounded bg-black/85 px-2 py-1 text-xs font-semibold text-white">
-            {formatDuration(video.durationSeconds, video.duration)}
-          </span>
-          {canPreview ? (
-            <span
-              className="pointer-events-none absolute bottom-2 left-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/80 text-white shadow-md"
-              aria-hidden
-            >
-              {previewActive ? <FiPause className="h-4 w-4" /> : <FiPlay className="ml-0.5 h-4 w-4" />}
-            </span>
-          ) : null}
-        </div>
-        <div className="p-4">
-          <h2 className="line-clamp-2 text-base font-semibold transition-colors group-hover:text-[var(--brand)]">{video.title}</h2>
-          <p className="yt-muted mt-1 line-clamp-2 text-sm">{video.description || "No description available."}</p>
-          <div className="yt-muted mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <span className="rounded-full bg-[var(--surface-muted)] px-2 py-1">Likes {video.likesCount || 0}</span>
-            <span className="rounded-full bg-[var(--surface-muted)] px-2 py-1">
-              Added {formatAddedDate(video.createdAt)}
-            </span>
-            <span className="rounded-full bg-[var(--surface-muted)] px-2 py-1">Views {video.viewsCount || 0}</span>
+    <article className={`video-card group ${previewActive ? "video-card--previewing" : ""}`}>
+      <div
+        className="video-card__media"
+        onPointerEnter={handleMediaPointerEnter}
+        onPointerLeave={handleMediaPointerLeave}
+        onTouchStart={() => {
+          if (hoverPreview) return;
+          startMobilePreview();
+        }}
+        onClick={(event) => {
+          event.preventDefault();
+          handleMediaClick();
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={previewActive ? `Previewing ${video.title}. Tap again to watch.` : `Preview ${video.title}`}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            handleMediaClick();
+          }
+        }}
+      >
+        {video.thumbnail ? (
+          <Image
+            src={video.thumbnail}
+            alt=""
+            fill
+            unoptimized
+            className="video-card__thumb"
+            sizes="(max-width: 768px) 50vw, 25vw"
+          />
+        ) : (
+          <div className="video-card__thumb flex items-center justify-center yt-muted" aria-hidden>
+            No thumbnail
           </div>
+        )}
+
+        {canPreview ? (
+          <video
+            ref={previewRef}
+            muted
+            playsInline
+            disablePictureInPicture
+            preload="auto"
+            onTimeUpdate={handleTimeUpdate}
+            className="video-card__preview"
+          />
+        ) : null}
+
+        <div className="video-card__shade" />
+
+        {!previewActive && canPreview ? (
+          <span className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center opacity-0 transition group-hover:opacity-100">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
+              <FiPlay className="ml-0.5 h-5 w-5" />
+            </span>
+          </span>
+        ) : null}
+
+        {previewActive ? <span className="video-card__badge">Preview</span> : null}
+
+        <span className="video-card__duration">{formatDuration(video.durationSeconds, video.duration)}</span>
+      </div>
+
+      <Link href={videoHref} className="video-card__body block">
+        <h2 className="video-card__title">{video.title}</h2>
+        <div className="video-card__meta">
+          {video.category?.name ? <span>{video.category.name}</span> : null}
+          <span>{formatViews(video.viewsCount)}</span>
+          {video.videoId ? <span>ID {video.videoId}</span> : null}
         </div>
-      </article>
-    </Link>
+      </Link>
+    </article>
   );
 }
