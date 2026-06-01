@@ -13,6 +13,7 @@ import {
   readThemeFromDocument,
   ThemeMode,
 } from "../lib/theme";
+import HeaderSearchBar from "./HeaderSearchBar";
 import HeaderSearchDropdown from "./HeaderSearchDropdown";
 
 const Logo = ({ compact = false, onError }: { compact?: boolean; onError: () => void }) => (
@@ -129,10 +130,12 @@ export default function UserHeader() {
   return (
     <header className="yt-header">
       <div className="mx-auto max-w-[1400px] px-3 py-3 sm:px-6">
-        <div className="hidden items-center gap-3 lg:flex">
-          <HeaderSearchDropdown />
+        <div className="hidden items-center gap-4 lg:flex">
           {logoNode}
-          <nav className="flex min-w-0 flex-1 items-center justify-center gap-1 text-sm">
+          <div className="flex min-w-0 flex-1 justify-center px-2">
+            <HeaderSearchBar />
+          </div>
+          <nav className="flex shrink-0 items-center gap-1 text-sm">
             <Link href="/" className="rounded px-3 py-2 hover:bg-[var(--surface-muted)]">
               Home
             </Link>
@@ -174,10 +177,7 @@ export default function UserHeader() {
         }`}
       >
         <div className="mb-4 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <HeaderSearchDropdown onNavigate={closeMobileMenu} dropdownAlign="right" />
-            <p className="text-lg font-semibold">Menu</p>
-          </div>
+          <p className="text-lg font-semibold">Menu</p>
           <button
             onClick={closeMobileMenu}
             className="shrink-0 rounded-full p-2 hover:bg-[var(--surface-muted)]"
