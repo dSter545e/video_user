@@ -144,14 +144,14 @@ export default function UserHeader() {
 
       {mobileMenuOpen ? (
         <button
-          className="fixed inset-0 z-[60] bg-black/40 lg:hidden"
+          className="fixed inset-0 z-[110] bg-black/40 lg:hidden"
           aria-label="Close menu overlay"
           onClick={closeMobileMenu}
         />
       ) : null}
 
       <aside
-        className={`fixed right-0 top-0 z-[70] h-full w-[300px] max-w-[85vw] border-l border-[var(--border)] bg-[var(--surface)] p-4 shadow-2xl transition-transform duration-300 lg:hidden ${
+        className={`fixed right-0 top-0 z-[120] h-full w-[300px] max-w-[85vw] border-l border-[var(--border)] bg-[var(--surface)] p-4 shadow-2xl transition-transform duration-300 lg:hidden ${
           mobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >

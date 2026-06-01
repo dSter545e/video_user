@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef } from "react";
 import { AdItem } from "../lib/ads";
 
 type AdBannerProps = {
@@ -10,20 +9,6 @@ type AdBannerProps = {
 };
 
 export default function AdBanner({ ad, className = "" }: AdBannerProps) {
-  const htmlRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (ad.type !== "html" || !htmlRef.current) return;
-    const container = htmlRef.current;
-    const scripts = container.querySelectorAll("script");
-    scripts.forEach((oldScript) => {
-      const script = document.createElement("script");
-      Array.from(oldScript.attributes).forEach((attr) => script.setAttribute(attr.name, attr.value));
-      script.textContent = oldScript.textContent;
-      oldScript.replaceWith(script);
-    });
-  }, [ad._id, ad.htmlContent, ad.type]);
-
   const wrapperClass = `ad-slot mx-auto flex w-full max-w-full flex-col items-center justify-center text-center ${className}`.trim();
 
   if (ad.type === "image" && ad.imageUrl) {
@@ -52,11 +37,15 @@ export default function AdBanner({ ad, className = "" }: AdBannerProps) {
 
   if (ad.type === "html" && ad.htmlContent) {
     return (
-      <div
-        ref={htmlRef}
-        className={wrapperClass}
-        dangerouslySetInnerHTML={{ __html: ad.htmlContent }}
-      />
+      <div className={wrapperClass}>
+        <iframe
+          title={ad.altText || "Advertisement"}
+          srcDoc={ad.htmlContent}
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+          className="ad-slot__html-frame mx-auto block w-full max-w-full border-0 bg-transparent"
+          scrolling="no"
+        />
+      </div>
     );
   }
 

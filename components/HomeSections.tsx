@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import VideoCard from "./VideoCard";
 import FeaturedCategoriesSection from "./FeaturedCategoriesSection";
 import AdSlot, { AdInFeed } from "./AdSlot";
@@ -89,10 +89,10 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
         {recommendedVideos.length ? (
           <div className={gridClassName}>
             {recommendedVideos.map((video, index) => (
-              <div key={video._id} className="contents">
+              <Fragment key={video._id}>
                 <VideoCard video={video} />
                 <AdInFeed index={index} />
-              </div>
+              </Fragment>
             ))}
           </div>
         ) : (
@@ -112,10 +112,10 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
         {latestVideos.length ? (
           <div className={gridClassName}>
             {latestVideos.map((video, index) => (
-              <div key={video._id} className="contents">
+              <Fragment key={video._id}>
                 <VideoCard video={video} />
                 <AdInFeed index={index + recommendedVideos.length} />
-              </div>
+              </Fragment>
             ))}
           </div>
         ) : (
@@ -135,10 +135,10 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
         {mostViewedVideos.length ? (
           <div className={gridClassName}>
             {mostViewedVideos.map((video, index) => (
-              <div key={video._id} className="contents">
+              <Fragment key={video._id}>
                 <VideoCard video={video} />
                 <AdInFeed index={index + recommendedVideos.length + latestVideos.length} />
-              </div>
+              </Fragment>
             ))}
           </div>
         ) : (

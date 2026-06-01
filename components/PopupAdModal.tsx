@@ -51,7 +51,7 @@ export default function PopupAdModal() {
   if (!visible || !popupAd) return null;
 
   return (
-    <div className="popup-ad-overlay fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
+    <div className="popup-ad-overlay fixed inset-0 z-[130] flex items-center justify-center bg-black/60 p-4">
       <div className="relative w-full max-w-lg text-center" role="dialog" aria-modal="true" aria-label="Advertisement">
         <button
           type="button"

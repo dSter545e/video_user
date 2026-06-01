@@ -76,7 +76,7 @@ export default function HeaderSearchDropdown({
       top: rect.bottom + 8,
       left,
       width,
-      zIndex: 100,
+      zIndex: 105,
     });
   }, [dropdownAlign]);
 

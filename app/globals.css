@@ -47,7 +47,7 @@ button {
 .yt-header {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 100;
   overflow: visible;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
@@ -495,9 +495,35 @@ html[data-theme="dark"] .mobile-sidebar-nav__segment-btn--active {
   backdrop-filter: blur(2px);
 }
 
-/* All ad slots: center embeds, images, and third-party iframes */
+.site-main {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+}
+
+.site-ad-top,
+.site-ad-bottom {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+}
+
+/* Contain all ad embeds so they cannot stack over header/cards */
+.ad-slot-frame {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  contain: layout paint style;
+  overflow: clip;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  transform: translateZ(0);
+  clear: both;
+}
+
 .ad-slot,
-[data-ad-slot] {
+[data-ad-slot] .ad-slot {
   display: flex;
   width: 100%;
   max-width: 100%;
@@ -516,18 +542,13 @@ html[data-theme="dark"] .mobile-sidebar-nav__segment-btn--active {
   max-width: 100%;
 }
 
-/* Home section breaks: keep banners in flow (no overlap on videos/header) */
-.home-between-sections-ad,
-.listing-in-feed-ad {
-  position: relative;
-  z-index: 0;
-  isolation: isolate;
-  transform: translateZ(0);
+.ad-slot__html-frame {
+  display: block;
   width: 100%;
-  min-width: 0;
   max-width: 100%;
+  min-height: 90px;
+  max-height: 320px;
   overflow: hidden;
-  clear: both;
 }
 
 .home-between-sections-ad {
@@ -535,23 +556,12 @@ html[data-theme="dark"] .mobile-sidebar-nav__segment-btn--active {
 }
 
 .listing-in-feed-ad {
-  margin: 0.5rem 0;
+  margin: 0.75rem 0;
   grid-column: 1 / -1;
 }
 
-.home-between-sections-ad .ad-slot,
-.listing-in-feed-ad .ad-slot {
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.home-between-sections-ad iframe,
-.home-between-sections-ad ins,
-.home-between-sections-ad img,
-.listing-in-feed-ad iframe,
-.listing-in-feed-ad ins,
-.listing-in-feed-ad img {
+.ad-slot-frame iframe,
+.ad-slot-frame ins,
+.ad-slot-frame img {
   max-width: 100% !important;
-  height: auto !important;
 }

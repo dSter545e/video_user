@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { AdSlotId } from "../lib/ads";
 import { useAds } from "./AdProvider";
 import AdBanner from "./AdBanner";
+import AdContainment from "./AdContainment";
 
 type AdSlotProps = {
   slot: AdSlotId;
@@ -18,9 +19,9 @@ export default function AdSlot({ slot, className = "" }: AdSlotProps) {
   if (loading || !ad) return null;
 
   return (
-    <div className={`my-3 flex w-full justify-center text-center ${className}`.trim()} data-ad-slot={slot}>
+    <AdContainment slot={slot} className={`my-3 flex w-full justify-center text-center ${className}`.trim()}>
       <AdBanner ad={ad} />
-    </div>
+    </AdContainment>
   );
 };
 
@@ -41,12 +42,12 @@ export function AdInFeed({ index, className = "" }: AdInFeedProps) {
   const rotated = ads[index % ads.length] || ad;
 
   return (
-    <div
+    <AdContainment
+      slot="listing_in_feed"
       className={`listing-in-feed-ad col-span-full flex w-full min-w-0 items-center justify-center text-center ${className}`}
-      data-ad-slot="listing_in_feed"
     >
       <AdBanner ad={rotated} />
-    </div>
+    </AdContainment>
   );
 }
 
