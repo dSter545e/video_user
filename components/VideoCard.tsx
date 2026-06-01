@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { MouseEvent, useEffect, useRef, useState } from "react";
+import { MouseEvent, TouchEvent, useEffect, useRef, useState } from "react";
+import { FiPause, FiPlay } from "react-icons/fi";
 import { Video } from "../lib/types";
 
 const formatDuration = (seconds?: number, fallback?: string) => {
@@ -109,7 +110,7 @@ export default function VideoCard({ video }: VideoCardProps) {
   const segmentBoundsRef = useRef<Array<{ start: number; end: number }>>([]);
   const segmentIndexRef = useRef(0);
   const [previewActive, setPreviewActive] = useState(false);
-  const [touchPreviewMode, setTouchPreviewMode] = useState(false);
+  const touchInteractingRef = useRef(false);
 
   const canPreview = Boolean(video.videoUrl);
 
@@ -226,30 +227,42 @@ export default function VideoCard({ video }: VideoCardProps) {
     }
   };
 
-  const handleEnter = async () => {
-    if (touchPreviewMode || previewActive) return;
-    await startPreview();
-  };
-
-  const handleLeave = () => {
-    if (touchPreviewMode) return;
+  const stopPreview = () => {
     cleanupPreview();
     setPreviewActive(false);
   };
 
-  const toggleMobilePreview = async (event: MouseEvent<HTMLButtonElement>) => {
+  const handleEnter = async () => {
+    if (touchInteractingRef.current || previewActive) return;
+    await startPreview();
+  };
+
+  const handleLeave = () => {
+    if (touchInteractingRef.current) return;
+    stopPreview();
+  };
+
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (!canPreview) return;
+    event.stopPropagation();
+    touchInteractingRef.current = true;
+    void startPreview();
+  };
+
+  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    stopPreview();
+    window.setTimeout(() => {
+      touchInteractingRef.current = false;
+    }, 400);
+  };
 
+  const handleCardClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (previewActive) {
-      cleanupPreview();
-      setPreviewActive(false);
-      setTouchPreviewMode(false);
-      return;
+      event.preventDefault();
+      stopPreview();
     }
-
-    setTouchPreviewMode(true);
-    await startPreview();
   };
 
   const handleTimeUpdate = async () => {
@@ -275,10 +288,18 @@ export default function VideoCard({ video }: VideoCardProps) {
   return (
     <Link
       href={`/videos/${video.slug || video._id}`}
+      onClick={handleCardClick}
       className="group block overflow-hidden border border-[var(--border)] bg-[var(--surface)] transition duration-300 hover:-translate-y-1 hover:border-[var(--brand)]/40 hover:shadow-[0_18px_36px_rgba(0,0,0,0.22)]"
     >
-      <article onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
-        <div className="relative aspect-video w-full overflow-hidden bg-[var(--surface-muted)]">
+      <article>
+        <div
+          className="relative aspect-video w-full overflow-hidden bg-[var(--surface-muted)] touch-manipulation"
+          onMouseEnter={handleEnter}
+          onMouseLeave={handleLeave}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+        >
           {video.thumbnail ? (
             <Image
               src={video.thumbnail}
@@ -312,13 +333,12 @@ export default function VideoCard({ video }: VideoCardProps) {
             {formatDuration(video.durationSeconds, video.duration)}
           </span>
           {canPreview ? (
-            <button
-              type="button"
-              onClick={toggleMobilePreview}
-              className="absolute bottom-2 left-2 rounded bg-black/85 px-2 py-1 text-xs font-semibold text-white sm:hidden"
+            <span
+              className="pointer-events-none absolute bottom-2 left-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/80 text-white shadow-md"
+              aria-hidden
             >
-              {previewActive ? "Stop Preview" : "Preview"}
-            </button>
+              {previewActive ? <FiPause className="h-4 w-4" /> : <FiPlay className="ml-0.5 h-4 w-4" />}
+            </span>
           ) : null}
         </div>
         <div className="p-4">

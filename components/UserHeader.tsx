@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
-import { FiSearch, FiSun, FiMoon, FiMenu, FiX, FiGrid, FiUser } from "react-icons/fi";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { FiSun, FiMoon, FiMenu, FiX, FiGrid, FiUser } from "react-icons/fi";
 import { VIEWER_AUTH_CHANGED_EVENT, getViewerUser, ViewerUser } from "../lib/auth";
-
-type ThemeMode = "light" | "dark";
+import {
+  applyTheme,
+  getStoredTheme,
+  getSystemTheme,
+  persistTheme,
+  readThemeFromDocument,
+  ThemeMode,
+} from "../lib/theme";
+import HeaderSearchDropdown from "./HeaderSearchDropdown";
 
 const Logo = ({ compact = false, onError }: { compact?: boolean; onError: () => void }) => (
   <Link href="/" className="flex shrink-0 items-center font-bold" aria-label="Go to home">
@@ -29,28 +35,27 @@ const Logo = ({ compact = false, onError }: { compact?: boolean; onError: () => 
 );
 
 export default function UserHeader() {
-  const router = useRouter();
   const [theme, setTheme] = useState<ThemeMode>("light");
-  const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [viewer, setViewer] = useState<ViewerUser | null>(null);
   const [logoUnavailable, setLogoUnavailable] = useState(false);
 
-  const applyTheme = (nextTheme: ThemeMode) => {
-    document.documentElement.setAttribute("data-theme", nextTheme);
-    document.documentElement.style.colorScheme = nextTheme;
-    document.body.setAttribute("data-theme", nextTheme);
-  };
-
-  useEffect(() => {
-    const storedTheme = (localStorage.getItem("user_theme") as ThemeMode | null) || "light";
-    setTheme(storedTheme);
-    applyTheme(storedTheme);
+  useLayoutEffect(() => {
+    setTheme(readThemeFromDocument());
   }, []);
 
   useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onSystemChange = () => {
+      if (getStoredTheme()) return;
+      const next = getSystemTheme();
+      setTheme(next);
+      applyTheme(next);
+    };
+
+    media.addEventListener("change", onSystemChange);
+    return () => media.removeEventListener("change", onSystemChange);
+  }, []);
 
   useEffect(() => {
     const syncViewer = () => setViewer(getViewerUser());
@@ -73,45 +78,11 @@ export default function UserHeader() {
   const toggleTheme = () => {
     const nextTheme: ThemeMode = theme === "light" ? "dark" : "light";
     setTheme(nextTheme);
-    localStorage.setItem("user_theme", nextTheme);
+    persistTheme(nextTheme);
     applyTheme(nextTheme);
   };
 
-  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const query = searchQuery.trim();
-    if (!query) return;
-
-    setMobileMenuOpen(false);
-    router.push(`/search?q=${encodeURIComponent(query)}`);
-  };
-
-  const searchForm = (variant: "desktop" | "mobile") => (
-    <form
-      onSubmit={handleSearch}
-      className={variant === "desktop" ? "flex w-full max-w-2xl items-center gap-2" : "space-y-2"}
-    >
-      <div className={`relative ${variant === "desktop" ? "min-w-0 flex-1" : "w-full"}`}>
-        <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 yt-muted" />
-        <input
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          className="yt-input w-full rounded-full py-2 pl-9 pr-4 text-sm outline-none"
-          placeholder="Search by video ID, title, or category"
-        />
-      </div>
-      <button
-        type="submit"
-        className={
-          variant === "desktop"
-            ? "shrink-0 rounded-full bg-[var(--brand)] px-5 py-2 text-sm font-semibold text-white"
-            : "w-full rounded-full bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-white"
-        }
-      >
-        Search
-      </button>
-    </form>
-  );
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const accountActions = (showLabel = false) => (
     <>
@@ -147,21 +118,21 @@ export default function UserHeader() {
     </>
   );
 
+  const logoNode = logoUnavailable ? (
+    <Link href="/" className="shrink-0 text-sm font-bold">
+      xHub4u
+    </Link>
+  ) : (
+    <Logo onError={() => setLogoUnavailable(true)} />
+  );
+
   return (
     <header className="yt-header">
       <div className="mx-auto max-w-[1400px] px-3 py-3 sm:px-6">
-        <div className="hidden items-center gap-4 lg:flex">
-          {logoUnavailable ? (
-            <Link href="/" className="shrink-0 text-sm font-bold">
-              xHub4u
-            </Link>
-          ) : (
-            <Logo onError={() => setLogoUnavailable(true)} />
-          )}
-
-          <div className="flex min-w-0 flex-1 justify-center px-2">{searchForm("desktop")}</div>
-
-          <nav className="flex shrink-0 items-center gap-1 text-sm">
+        <div className="hidden items-center gap-3 lg:flex">
+          <HeaderSearchDropdown />
+          {logoNode}
+          <nav className="flex min-w-0 flex-1 items-center justify-center gap-1 text-sm">
             <Link href="/" className="rounded px-3 py-2 hover:bg-[var(--surface-muted)]">
               Home
             </Link>
@@ -169,19 +140,15 @@ export default function UserHeader() {
               Categories
             </Link>
           </nav>
-
           <div className="flex shrink-0 items-center gap-2">{accountActions(true)}</div>
         </div>
 
         <div className="flex items-center justify-between gap-3 lg:hidden">
-          {logoUnavailable ? (
-            <Link href="/" className="text-sm font-bold">
-              xHub4u
-            </Link>
-          ) : (
-            <Logo compact onError={() => setLogoUnavailable(true)} />
-          )}
-          <div className="flex items-center gap-2">
+          <div className="min-w-0 shrink-0">
+            {logoUnavailable ? logoNode : <Logo compact onError={() => setLogoUnavailable(true)} />}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <HeaderSearchDropdown onNavigate={closeMobileMenu} dropdownAlign="right" />
             <button
               onClick={() => setMobileMenuOpen(true)}
               className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
@@ -197,7 +164,7 @@ export default function UserHeader() {
         <button
           className="fixed inset-0 z-[60] bg-black/40 lg:hidden"
           aria-label="Close menu overlay"
-          onClick={() => setMobileMenuOpen(false)}
+          onClick={closeMobileMenu}
         />
       ) : null}
 
@@ -206,30 +173,31 @@ export default function UserHeader() {
           mobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-lg font-semibold">Menu</p>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <HeaderSearchDropdown onNavigate={closeMobileMenu} dropdownAlign="right" />
+            <p className="text-lg font-semibold">Menu</p>
+          </div>
           <button
-            onClick={() => setMobileMenuOpen(false)}
-            className="rounded-full p-2 hover:bg-[var(--surface-muted)]"
+            onClick={closeMobileMenu}
+            className="shrink-0 rounded-full p-2 hover:bg-[var(--surface-muted)]"
             aria-label="Close menu"
           >
             <FiX />
           </button>
         </div>
 
-        <div className="mb-5">{searchForm("mobile")}</div>
-
         <nav className="mb-5 space-y-1 text-sm">
           <Link
             href="/"
-            onClick={() => setMobileMenuOpen(false)}
+            onClick={closeMobileMenu}
             className="block rounded px-3 py-2 hover:bg-[var(--surface-muted)]"
           >
             Home
           </Link>
           <Link
             href="/categories"
-            onClick={() => setMobileMenuOpen(false)}
+            onClick={closeMobileMenu}
             className="block rounded px-3 py-2 hover:bg-[var(--surface-muted)]"
           >
             Categories

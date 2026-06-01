@@ -1,5 +1,7 @@
 export type AdPageKey = "all" | "home" | "watch" | "videos" | "categories" | "search" | "auth" | "legal";
 
+export type AdDeviceTarget = "all" | "desktop" | "tablet" | "mobile";
+
 export type AdSlotId =
   | "header_leaderboard"
   | "home_between_sections"
@@ -23,6 +25,7 @@ export type AdItem = {
   linkUrl: string;
   altText: string;
   pages: AdPageKey[];
+  devices: AdDeviceTarget[];
   inFeedEvery: number;
   skipAfterSeconds: number;
   popupDelaySeconds: number;

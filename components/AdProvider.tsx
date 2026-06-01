@@ -3,6 +3,7 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AdItem, AdPageKey, AdSlotId, AdsBySlot, resolveAdPageFromPath } from "../lib/ads";
+import { AdDeviceKey, resolveAdDevice, resolveAdDeviceFromWidth } from "../lib/adDevice";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -31,15 +32,25 @@ export default function AdProvider({ children }: AdProviderProps) {
   const page = useMemo(() => resolveAdPageFromPath(pathname || "/"), [pathname]);
   const [adsBySlot, setAdsBySlot] = useState<AdsBySlot>({});
   const [loading, setLoading] = useState(true);
+  const [device, setDevice] = useState<AdDeviceKey>(() => resolveAdDevice());
+
+  useEffect(() => {
+    const onResize = () => {
+      const next = resolveAdDeviceFromWidth(window.innerWidth);
+      setDevice((prev) => (prev === next ? prev : next));
+    };
+    window.addEventListener("resize", onResize);
+    onResize();
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${BACKEND_URL}/api/ads?page=${encodeURIComponent(page)}`, {
-          cache: "no-store",
-        });
+        const url = `${BACKEND_URL}/api/ads?page=${encodeURIComponent(page)}&device=${encodeURIComponent(device)}`;
+        const response = await fetch(url, { cache: "no-store" });
         if (!response.ok) return;
         const data = (await response.json()) as { ads?: AdsBySlot };
         if (!cancelled && data.ads) setAdsBySlot(data.ads);
@@ -53,7 +64,7 @@ export default function AdProvider({ children }: AdProviderProps) {
     return () => {
       cancelled = true;
     };
-  }, [page]);
+  }, [page, device]);
 
   const getAdsForSlot = (slot: AdSlotId) => adsBySlot[slot] || [];
 
