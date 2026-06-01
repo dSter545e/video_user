@@ -1,23 +1,14 @@
-import { Metadata } from "next";
 import Link from "next/link";
-import { SEO, absoluteUrl } from "../../lib/seo";
+import { buildPageMetadata } from "../../lib/pageMetadata";
+import { SEO } from "../../lib/seo";
 
-const pagePath = "/cookie-policy";
+export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Cookie Policy",
   description: `Cookie policy for ${SEO.siteName}, including age verification and preferences on our adult platform.`,
-  alternates: { canonical: pagePath },
-  openGraph: {
-    title: `Cookie Policy | ${SEO.siteName}`,
-    description: `How ${SEO.siteName} uses cookies on its adults-only platform.`,
-    url: absoluteUrl(pagePath),
-  },
-  twitter: {
-    title: `Cookie Policy | ${SEO.siteName}`,
-    description: `How ${SEO.siteName} uses cookies on its adults-only platform.`,
-  },
-};
+  canonicalPath: "/cookie-policy",
+});
 
 export default function CookiePolicyPage() {
   return (

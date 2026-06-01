@@ -1,10 +1,14 @@
-import { Metadata } from "next";
 import ReportRemovalClient from "./ReportRemovalClient";
+import { buildPageMetadata } from "../../lib/pageMetadata";
+import { SEO } from "../../lib/seo";
 
-export const metadata: Metadata = {
+export const dynamic = "force-dynamic";
+
+export const metadata = buildPageMetadata({
   title: "Video Removal Request",
-  description: "Submit a request to remove a video from xHub4u.",
-};
+  description: `Submit a request to remove a video from ${SEO.siteName}.`,
+  canonicalPath: "/report-removal",
+});
 
 export default function ReportRemovalPage() {
   return <ReportRemovalClient />;

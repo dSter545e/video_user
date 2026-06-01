@@ -19,7 +19,7 @@ export default function AdSlot({ slot, className = "" }: AdSlotProps) {
   if (loading || !ad) return null;
 
   return (
-    <AdContainment slot={slot} className={`my-3 flex w-full justify-center text-center ${className}`.trim()}>
+    <AdContainment slot={slot} className={`my-3 ${className}`.trim()}>
       <AdBanner ad={ad} />
     </AdContainment>
   );
@@ -44,7 +44,7 @@ export function AdInFeed({ index, className = "" }: AdInFeedProps) {
   return (
     <AdContainment
       slot="listing_in_feed"
-      className={`listing-in-feed-ad col-span-full flex w-full min-w-0 items-center justify-center text-center ${className}`}
+      className={`listing-in-feed-ad col-span-full min-w-0 ${className}`}
     >
       <AdBanner ad={rotated} />
     </AdContainment>

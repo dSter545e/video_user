@@ -508,47 +508,82 @@ html[data-theme="dark"] .mobile-sidebar-nav__segment-btn--active {
   width: 100%;
 }
 
-/* Contain all ad embeds so they cannot stack over header/cards */
+/* Full-width row, centered creative at real ad size (scales down on narrow screens) */
 .ad-slot-frame {
   position: relative;
   z-index: 0;
   isolation: isolate;
-  contain: layout paint style;
-  overflow: clip;
+  display: flex;
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  background: transparent;
   transform: translateZ(0);
   clear: both;
 }
 
-.ad-slot,
-[data-ad-slot] .ad-slot {
+.ad-slot {
   display: flex;
   width: 100%;
   max-width: 100%;
   justify-content: center;
   align-items: center;
-  text-align: center;
+  background: transparent;
 }
 
-.ad-slot iframe,
-.ad-slot img,
-.ad-slot ins,
-.ad-slot a,
-.ad-slot > div {
-  margin-left: auto;
-  margin-right: auto;
+/* Sized to creative dimensions (--ad-w / --ad-h); scales down on small screens */
+.ad-slot-creative {
+  --ad-w: 728;
+  --ad-h: 90;
+  position: relative;
+  box-sizing: border-box;
+  width: min(100%, calc(var(--ad-w) * 1px));
+  aspect-ratio: var(--ad-w) / var(--ad-h);
   max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  background: transparent;
+  line-height: 0;
 }
 
-.ad-slot__html-frame {
+.ad-slot-creative--html {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: normal;
+}
+
+.ad-slot-creative--html ins,
+.ad-slot-creative--html iframe,
+.ad-slot-creative--html img,
+.ad-slot-creative--html > div,
+.ad-slot-creative--html > a {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  margin: 0 auto !important;
+  background: transparent !important;
+}
+
+.ad-slot__link {
   display: block;
   width: 100%;
-  max-width: 100%;
-  min-height: 90px;
-  max-height: 320px;
-  overflow: hidden;
+  height: 100%;
+  background: transparent;
+}
+
+.ad-slot__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  background: transparent;
 }
 
 .home-between-sections-ad {
@@ -560,8 +595,22 @@ html[data-theme="dark"] .mobile-sidebar-nav__segment-btn--active {
   grid-column: 1 / -1;
 }
 
-.ad-slot-frame iframe,
-.ad-slot-frame ins,
-.ad-slot-frame img {
-  max-width: 100% !important;
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-muted) 0%,
+    var(--border) 45%,
+    var(--surface-muted) 90%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.15s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }

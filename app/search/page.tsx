@@ -1,7 +1,7 @@
-import { Metadata } from "next";
 import Link from "next/link";
 import VideoGridWithAds from "../../components/VideoGridWithAds";
 import { getPaginatedVideosApi } from "../../lib/api";
+import { buildPageMetadata } from "../../lib/pageMetadata";
 import { SEO } from "../../lib/seo";
 
 type SearchPageProps = {
@@ -12,13 +12,16 @@ type SearchPageProps = {
   }>;
 };
 
-export async function generateMetadata({ searchParams }: SearchPageProps): Promise<Metadata> {
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ searchParams }: SearchPageProps) {
   const { q = "" } = await searchParams;
   const title = q.trim() ? `Search: ${q.trim()}` : "Search Videos";
-  return {
+  return buildPageMetadata({
     title,
     description: `Search videos on ${SEO.siteName} by video ID, title, or category.`,
-  };
+    canonicalPath: "/search",
+  });
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {

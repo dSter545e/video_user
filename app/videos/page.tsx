@@ -1,8 +1,7 @@
-import { Metadata } from "next";
 import Link from "next/link";
 import VideoGridWithAds from "../../components/VideoGridWithAds";
 import { getPaginatedVideosApi } from "../../lib/api";
-import { SEO } from "../../lib/seo";
+import { buildPageMetadata } from "../../lib/pageMetadata";
 
 type VideosPageProps = {
   searchParams: Promise<{ sort?: string; page?: string }>;
@@ -16,19 +15,13 @@ const SORT_OPTIONS = [
   { id: "short_duration", label: "Short Duration" },
 ];
 
-export const metadata: Metadata = {
+export const dynamic = "force-dynamic";
+
+export const metadata = buildPageMetadata({
   title: "All Videos",
   description: "Browse all videos with filters like recent, most viewed, top rated, and duration.",
-  openGraph: {
-    title: `${SEO.siteName} - All Videos`,
-    description: "Browse all videos with filters like recent, most viewed, top rated, and duration.",
-    url: `${SEO.siteUrl}/videos`,
-  },
-  twitter: {
-    title: `${SEO.siteName} - All Videos`,
-    description: "Browse all videos with filters like recent, most viewed, top rated, and duration.",
-  },
-};
+  canonicalPath: "/videos",
+});
 
 export default async function VideosPage({ searchParams }: VideosPageProps) {
   const { sort = "recent", page = "1" } = await searchParams;

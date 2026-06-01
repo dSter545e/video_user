@@ -1,22 +1,16 @@
-import { Metadata } from "next";
 import Link from "next/link";
 import FeaturedCategoriesSection from "../../components/FeaturedCategoriesSection";
 import { getCategoriesApi, getVideosApi } from "../../lib/api";
+import { buildPageMetadata } from "../../lib/pageMetadata";
 import { SEO } from "../../lib/seo";
 
-export const metadata: Metadata = {
+export const dynamic = "force-dynamic";
+
+export const metadata = buildPageMetadata({
   title: "Categories",
   description: SEO.defaultDescription,
-  openGraph: {
-    title: `${SEO.siteName} - Categories`,
-    description: SEO.defaultDescription,
-    url: `${SEO.siteUrl}/categories`,
-  },
-  twitter: {
-    title: `${SEO.siteName} - Categories`,
-    description: SEO.defaultDescription,
-  },
-};
+  canonicalPath: "/categories",
+});
 
 export default async function CategoriesPage() {
   const [categories, videos] = await Promise.all([getCategoriesApi(), getVideosApi()]);

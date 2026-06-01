@@ -1,23 +1,14 @@
-import { Metadata } from "next";
 import Link from "next/link";
-import { SEO, absoluteUrl } from "../../lib/seo";
+import { buildPageMetadata } from "../../lib/pageMetadata";
+import { SEO } from "../../lib/seo";
 
-const pagePath = "/privacy-policy";
+export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Privacy Policy",
   description: `Privacy policy for ${SEO.siteName}, an adults-only video platform. Learn how we handle your data.`,
-  alternates: { canonical: pagePath },
-  openGraph: {
-    title: `Privacy Policy | ${SEO.siteName}`,
-    description: `Privacy policy for ${SEO.siteName}, an adults-only video platform.`,
-    url: absoluteUrl(pagePath),
-  },
-  twitter: {
-    title: `Privacy Policy | ${SEO.siteName}`,
-    description: `Privacy policy for ${SEO.siteName}, an adults-only video platform.`,
-  },
-};
+  canonicalPath: "/privacy-policy",
+});
 
 export default function PrivacyPolicyPage() {
   return (

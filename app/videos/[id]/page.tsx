@@ -1,22 +1,25 @@
-import { Metadata } from "next";
 import Link from "next/link";
 import VideoWatchClient from "../../../components/VideoWatchClient";
 import { getVideoByIdApi, getVideoCommentsApi } from "../../../lib/api";
+import { buildPageMetadata } from "../../../lib/pageMetadata";
 import { SEO, absoluteUrl } from "../../../lib/seo";
+
+export const dynamic = "force-dynamic";
 
 type VideoWatchPageProps = {
   params: Promise<{ id: string }>;
 };
 
-export async function generateMetadata({ params }: VideoWatchPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: VideoWatchPageProps) {
   const { id } = await params;
   const video = await getVideoByIdApi(id);
 
   if (!video) {
-    return {
+    return buildPageMetadata({
       title: "Video Not Found",
       description: "Requested video could not be found.",
-    };
+      canonicalPath: `/videos/${id}`,
+    });
   }
 
   const path = `/videos/${video.slug || id}`;
@@ -24,24 +27,13 @@ export async function generateMetadata({ params }: VideoWatchPageProps): Promise
     ? video.description.slice(0, 160)
     : `Watch ${video.title} on ${SEO.siteName}.`;
 
-  return {
+  return buildPageMetadata({
     title: video.title,
     description,
-    alternates: { canonical: path },
-    openGraph: {
-      type: "video.other",
-      title: video.title,
-      description,
-      url: absoluteUrl(path),
-      images: video.thumbnail ? [{ url: absoluteUrl(video.thumbnail) }] : undefined,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: video.title,
-      description,
-      images: video.thumbnail ? [absoluteUrl(video.thumbnail)] : undefined,
-    },
-  };
+    canonicalPath: path,
+    ogImage: video.thumbnail,
+    ogType: "video.other",
+  });
 }
 
 export default async function VideoWatchPage({ params }: VideoWatchPageProps) {

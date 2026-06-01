@@ -1,23 +1,14 @@
-import { Metadata } from "next";
 import Link from "next/link";
-import { SEO, absoluteUrl } from "../../lib/seo";
+import { buildPageMetadata } from "../../lib/pageMetadata";
+import { SEO } from "../../lib/seo";
 
-const pagePath = "/terms-and-conditions";
+export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Terms and Conditions",
   description: `Terms of use for ${SEO.siteName}, an adults-only video platform with mature and explicit content.`,
-  alternates: { canonical: pagePath },
-  openGraph: {
-    title: `Terms and Conditions | ${SEO.siteName}`,
-    description: `Terms of use for ${SEO.siteName}, an adults-only video platform.`,
-    url: absoluteUrl(pagePath),
-  },
-  twitter: {
-    title: `Terms and Conditions | ${SEO.siteName}`,
-    description: `Terms of use for ${SEO.siteName}, an adults-only video platform.`,
-  },
-};
+  canonicalPath: "/terms-and-conditions",
+});
 
 export default function TermsAndConditionsPage() {
   return (

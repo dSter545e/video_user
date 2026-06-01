@@ -1,8 +1,8 @@
-import { Metadata } from "next";
 import Link from "next/link";
 import VideoGridWithAds from "../../../components/VideoGridWithAds";
 import { getCategoriesApi, getVideosByCategoryApi } from "../../../lib/api";
-import { SEO, absoluteUrl } from "../../../lib/seo";
+import { buildPageMetadata } from "../../../lib/pageMetadata";
+import { SEO } from "../../../lib/seo";
 
 type CategoryVideosPageProps = {
   params: Promise<{ id: string }>;
@@ -17,30 +17,21 @@ const SORT_OPTIONS = [
   { id: "short_duration", label: "Short Duration" },
 ] as const;
 
-export async function generateMetadata({ params }: CategoryVideosPageProps): Promise<Metadata> {
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: CategoryVideosPageProps) {
   const { id } = await params;
   const categories = await getCategoriesApi();
   const category = categories.find((item) => item._id === id || item.slug === id);
   const title = category?.name ? `${category.name} Videos` : "Category Videos";
-  const description = SEO.defaultDescription;
   const categoryPath = `/categories/${category?.slug || id}`;
 
-  return {
+  return buildPageMetadata({
     title,
-    description,
-    alternates: { canonical: categoryPath },
-    openGraph: {
-      title,
-      description,
-      url: absoluteUrl(categoryPath),
-      images: category?.imageUrl ? [{ url: absoluteUrl(category.imageUrl) }] : undefined,
-    },
-    twitter: {
-      title,
-      description,
-      images: category?.imageUrl ? [absoluteUrl(category.imageUrl)] : undefined,
-    },
-  };
+    description: SEO.defaultDescription,
+    canonicalPath: categoryPath,
+    ogImage: category?.imageUrl,
+  });
 }
 
 export default async function CategoryVideosPage({ params, searchParams }: CategoryVideosPageProps) {

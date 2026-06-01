@@ -1,21 +1,16 @@
-import { Metadata } from "next";
 import { getCategoriesApi, getVideosApi } from "../lib/api";
 import HomeSections from "../components/HomeSections";
+import { buildPageMetadata } from "../lib/pageMetadata";
 import { SEO } from "../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Home",
+export const dynamic = "force-dynamic";
+
+export const metadata = buildPageMetadata({
+  title: SEO.defaultTitle,
   description: SEO.defaultDescription,
-  openGraph: {
-    title: SEO.defaultTitle,
-    description: SEO.defaultDescription,
-    url: SEO.siteUrl,
-  },
-  twitter: {
-    title: SEO.defaultTitle,
-    description: SEO.defaultDescription,
-  },
-};
+  canonicalPath: "/",
+  absoluteTitle: true,
+});
 
 export default async function Home() {
   const [videos, categories] = await Promise.all([getVideosApi(), getCategoriesApi()]);

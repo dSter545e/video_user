@@ -1,49 +1,92 @@
 "use client";
 
-import Image from "next/image";
+import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { AdItem } from "../lib/ads";
+import { parseAdDimensionsFromHtml, resolveAdDimensions } from "../lib/adDimensions";
 
 type AdBannerProps = {
   ad: AdItem;
   className?: string;
 };
 
+const runEmbedScripts = (container: HTMLElement) => {
+  container.querySelectorAll("script").forEach((oldScript) => {
+    const script = document.createElement("script");
+    Array.from(oldScript.attributes).forEach((attr) => script.setAttribute(attr.name, attr.value));
+    script.textContent = oldScript.textContent;
+    oldScript.replaceWith(script);
+  });
+};
+
 export default function AdBanner({ ad, className = "" }: AdBannerProps) {
-  const wrapperClass = `ad-slot mx-auto flex w-full max-w-full flex-col items-center justify-center text-center ${className}`.trim();
+  const htmlRef = useRef<HTMLDivElement>(null);
+  const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
+
+  const htmlDimensions = useMemo((): { width?: number; height?: number } => {
+    if (ad.type === "html" && ad.htmlContent) {
+      return parseAdDimensionsFromHtml(ad.htmlContent);
+    }
+    return {};
+  }, [ad.htmlContent, ad.type]);
+
+  const creativeSize = useMemo(() => {
+    if (ad.type === "image" && imageSize) {
+      return resolveAdDimensions(imageSize.width, imageSize.height);
+    }
+    return resolveAdDimensions(htmlDimensions.width, htmlDimensions.height);
+  }, [ad.type, htmlDimensions.height, htmlDimensions.width, imageSize]);
+
+  const creativeStyle = {
+    "--ad-w": creativeSize.width,
+    "--ad-h": creativeSize.height,
+  } as CSSProperties;
+
+  useEffect(() => {
+    if (ad.type !== "html" || !htmlRef.current) return;
+    runEmbedScripts(htmlRef.current);
+  }, [ad._id, ad.htmlContent, ad.type]);
 
   if (ad.type === "image" && ad.imageUrl) {
     const image = (
-      <Image
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
         src={ad.imageUrl}
         alt={ad.altText || "Advertisement"}
-        width={728}
-        height={90}
-        className="mx-auto h-auto w-full max-w-full object-contain"
-        unoptimized
+        className="ad-slot__image"
+        loading="lazy"
+        decoding="async"
+        onLoad={(event) => {
+          const target = event.currentTarget;
+          if (target.naturalWidth > 0 && target.naturalHeight > 0) {
+            setImageSize({ width: target.naturalWidth, height: target.naturalHeight });
+          }
+        }}
       />
     );
+
     return (
-      <div className={wrapperClass}>
-        {ad.linkUrl ? (
-          <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer sponsored" className="mx-auto block w-fit max-w-full">
-            {image}
-          </a>
-        ) : (
-          image
-        )}
+      <div className={`ad-slot ${className}`.trim()}>
+        <div className="ad-slot-creative" style={creativeStyle}>
+          {ad.linkUrl ? (
+            <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer sponsored" className="ad-slot__link">
+              {image}
+            </a>
+          ) : (
+            image
+          )}
+        </div>
       </div>
     );
   }
 
   if (ad.type === "html" && ad.htmlContent) {
     return (
-      <div className={wrapperClass}>
-        <iframe
-          title={ad.altText || "Advertisement"}
-          srcDoc={ad.htmlContent}
-          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-          className="ad-slot__html-frame mx-auto block w-full max-w-full border-0 bg-transparent"
-          scrolling="no"
+      <div className={`ad-slot ${className}`.trim()}>
+        <div
+          ref={htmlRef}
+          className="ad-slot-creative ad-slot-creative--html"
+          style={creativeStyle}
+          dangerouslySetInnerHTML={{ __html: ad.htmlContent }}
         />
       </div>
     );
