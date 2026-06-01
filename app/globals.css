@@ -160,3 +160,16 @@ button {
   object-fit: cover !important;
   object-position: center !important;
 }
+
+.video-player-with-ads .video-preroll-ad {
+  min-height: 220px;
+}
+
+.popup-ad-overlay {
+  backdrop-filter: blur(2px);
+}
+
+.popup-ad-modal {
+  max-height: min(90vh, 640px);
+  overflow-y: auto;
+}

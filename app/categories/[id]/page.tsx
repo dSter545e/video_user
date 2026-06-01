@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import VideoCard from "../../../components/VideoCard";
+import VideoGridWithAds from "../../../components/VideoGridWithAds";
 import { getCategoriesApi, getVideosByCategoryApi } from "../../../lib/api";
 import { SEO, absoluteUrl } from "../../../lib/seo";
 
@@ -95,11 +95,7 @@ export default async function CategoryVideosPage({ params, searchParams }: Categ
       {sortedVideos.length === 0 ? (
         <p className="yt-card p-8 text-center yt-muted">No videos in this category.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {sortedVideos.map((video) => (
-            <VideoCard key={video._id} video={video} />
-          ))}
-        </div>
+        <VideoGridWithAds videos={sortedVideos} />
       )}
     </main>
   );

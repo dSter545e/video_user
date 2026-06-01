@@ -9,12 +9,15 @@ type FeaturedCategoriesSectionProps = {
   categories: Category[];
   videos?: Video[];
   showViewAllLink?: boolean;
+  /** Set on pages where category tiles are above the fold (improves LCP). */
+  priorityLeadingImage?: boolean;
 };
 
 export default function FeaturedCategoriesSection({
   categories,
   videos = [],
   showViewAllLink = true,
+  priorityLeadingImage = false,
 }: FeaturedCategoriesSectionProps) {
   const featuredCategories = useMemo(
     () => categories.filter((category) => category.featured).slice(0, 6),
@@ -48,8 +51,9 @@ export default function FeaturedCategoriesSection({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-        {featuredCategories.map((category) => {
+        {featuredCategories.map((category, index) => {
           const videoCount = videoCountByCategory.get(category._id) || 0;
+          const isPriorityImage = priorityLeadingImage && index === 0;
           return (
             <Link
               key={category._id}
@@ -63,6 +67,8 @@ export default function FeaturedCategoriesSection({
                     alt={category.name}
                     fill
                     unoptimized
+                    priority={isPriorityImage}
+                    loading={isPriorityImage ? "eager" : "lazy"}
                     className="object-cover object-center transition duration-500 group-hover:scale-105"
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 16vw"
                   />

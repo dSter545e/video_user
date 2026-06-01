@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import VideoCard from "../../components/VideoCard";
+import VideoGridWithAds from "../../components/VideoGridWithAds";
 import { getPaginatedVideosApi } from "../../lib/api";
 import { SEO } from "../../lib/seo";
 
@@ -77,11 +77,7 @@ export default async function VideosPage({ searchParams }: VideosPageProps) {
 
       {sortedVideos.length ? (
         <>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {sortedVideos.map((video) => (
-              <VideoCard key={video._id} video={video} />
-            ))}
-          </div>
+          <VideoGridWithAds videos={sortedVideos} />
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
             <p className="yt-muted text-sm">
               Page {pagination.page} of {pagination.totalPages} | Total Videos: {pagination.totalItems}

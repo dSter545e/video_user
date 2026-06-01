@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { FiThumbsDown, FiThumbsUp } from "react-icons/fi";
-import VideoJsPlayer from "./VideoJsPlayer";
+import VideoPlayerWithAds from "./VideoPlayerWithAds";
 import VideoCard from "./VideoCard";
 import { addVideoCommentApi, getRecommendedVideosApi, reactToVideoApi, trackVideoViewApi } from "../lib/api";
 import { Video, VideoComment } from "../lib/types";
 import { getViewerUser } from "../lib/auth";
 import { emitAnalyticsEvent } from "../lib/analytics";
+import AdSlot, { AdInFeed } from "./AdSlot";
 
 type VideoWatchClientProps = {
   initialVideo: Video;
@@ -121,7 +122,7 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
   return (
     <main className="mx-auto w-full max-w-[1200px] px-3 py-6 sm:px-6">
       <div className="yt-card rounded-none p-1 sm:p-2">
-        <VideoJsPlayer
+        <VideoPlayerWithAds
           src={video.videoUrl}
           poster={video.thumbnail}
           qualityVariants={(video.qualityVariants || []).map((item) => ({
@@ -132,6 +133,8 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
           onPlayedSeconds={handlePlayedSeconds}
         />
       </div>
+
+      <AdSlot slot="watch_below_player" />
 
       <div className="mt-4">
         <h1 className="text-2xl font-bold">{video.title}</h1>
@@ -180,6 +183,8 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
             </p>
           ) : null}
         </div>
+
+        <AdSlot slot="watch_before_comments" />
 
         <div className="mt-6 yt-card p-4">
           <h2 className="text-lg font-semibold">Comments</h2>
@@ -230,10 +235,14 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
 
       {recommendedVideos.length ? (
         <section className="mt-8">
+          <AdSlot slot="watch_before_recommendations" />
           <h2 className="mb-3 text-xl font-semibold">Recommended For You</h2>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {recommendedVideos.map((item) => (
-              <VideoCard key={item._id} video={item} />
+            {recommendedVideos.map((item, index) => (
+              <div key={item._id} className="contents">
+                <VideoCard video={item} />
+                <AdInFeed index={index} />
+              </div>
             ))}
           </div>
         </section>

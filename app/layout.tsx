@@ -6,6 +6,7 @@ import UserFooter from "../components/UserFooter";
 import UserAnalyticsTracker from "../components/UserAnalyticsTracker";
 import { AuthProvider } from "../components/AuthProvider";
 import AgeGateModal from "../components/AgeGateModal";
+import SiteAdShell from "../components/SiteAdShell";
 import { SEO, absoluteUrl } from "../lib/seo";
 import { getSiteVerificationMetadata } from "../lib/siteVerification";
 
@@ -70,7 +71,7 @@ export default function RootLayout({
             <AgeGateModal />
             <UserAnalyticsTracker />
             <UserHeader />
-            {children}
+            <SiteAdShell>{children}</SiteAdShell>
             <UserFooter />
           </div>
         </AuthProvider>

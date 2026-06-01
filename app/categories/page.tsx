@@ -29,7 +29,12 @@ export default async function CategoriesPage() {
       </Link>
 
       {hasFeaturedCategories ? (
-        <FeaturedCategoriesSection categories={categories} videos={videos} showViewAllLink={false} />
+        <FeaturedCategoriesSection
+          categories={categories}
+          videos={videos}
+          showViewAllLink={false}
+          priorityLeadingImage
+        />
       ) : (
         <p className="yt-card p-8 text-center yt-muted">No categories available.</p>
       )}

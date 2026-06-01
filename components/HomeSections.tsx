@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import VideoCard from "./VideoCard";
 import FeaturedCategoriesSection from "./FeaturedCategoriesSection";
+import AdSlot, { AdInFeed } from "./AdSlot";
 import { Category, Video } from "../lib/types";
 import { getRecommendedVideosApi } from "../lib/api";
 import { getOrCreateVisitorId } from "../lib/analytics";
@@ -80,14 +81,19 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
         </div>
         {recommendedVideos.length ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {recommendedVideos.map((video) => (
-              <VideoCard key={video._id} video={video} />
+            {recommendedVideos.map((video, index) => (
+              <div key={video._id} className="contents">
+                <VideoCard video={video} />
+                <AdInFeed index={index} />
+              </div>
             ))}
           </div>
         ) : (
           <p className="yt-card p-8 text-center yt-muted">No videos available. Add videos from admin panel.</p>
         )}
       </section>
+
+      <AdSlot slot="home_between_sections" />
 
       <section className="mb-8">
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -98,8 +104,11 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
         </div>
         {latestVideos.length ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {latestVideos.map((video) => (
-              <VideoCard key={video._id} video={video} />
+            {latestVideos.map((video, index) => (
+              <div key={video._id} className="contents">
+                <VideoCard video={video} />
+                <AdInFeed index={index + recommendedVideos.length} />
+              </div>
             ))}
           </div>
         ) : (
@@ -116,8 +125,11 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
         </div>
         {mostViewedVideos.length ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {mostViewedVideos.map((video) => (
-              <VideoCard key={video._id} video={video} />
+            {mostViewedVideos.map((video, index) => (
+              <div key={video._id} className="contents">
+                <VideoCard video={video} />
+                <AdInFeed index={index + recommendedVideos.length + latestVideos.length} />
+              </div>
             ))}
           </div>
         ) : (
