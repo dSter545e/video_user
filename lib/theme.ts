@@ -1,6 +1,7 @@
 export type ThemeMode = "light" | "dark";
 
 export const THEME_STORAGE_KEY = "user_theme";
+export const THEME_CHANGED_EVENT = "user-theme-changed";
 
 export const getSystemTheme = (): ThemeMode => {
   if (typeof window === "undefined") return "light";

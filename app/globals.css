@@ -214,6 +214,125 @@ button {
   margin: 0;
 }
 
+.mobile-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 1rem;
+}
+
+.mobile-sidebar-nav__row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: var(--foreground);
+  transition: background-color 0.15s ease;
+}
+
+.mobile-sidebar-nav__row--link {
+  text-decoration: none;
+}
+
+.mobile-sidebar-nav__row--link:hover,
+.mobile-sidebar-nav__row--options:hover {
+  background: var(--surface-muted);
+}
+
+.mobile-sidebar-nav__row-main {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.mobile-sidebar-nav__row-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 18px;
+  color: var(--foreground);
+}
+
+.mobile-sidebar-nav__row-label {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-sidebar-nav__segment {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.mobile-sidebar-nav__segment-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 36px;
+  height: 30px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--subtext);
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.mobile-sidebar-nav__segment--wide .mobile-sidebar-nav__segment-btn {
+  min-width: 44px;
+  padding: 0 8px;
+}
+
+.mobile-sidebar-nav__segment-btn:hover {
+  color: var(--foreground);
+}
+
+.mobile-sidebar-nav__segment-btn--active {
+  background: var(--brand);
+  color: #fff;
+}
+
+html[data-theme="dark"] .mobile-sidebar-nav__segment {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .mobile-sidebar-nav__segment-btn--active {
+  color: #fff;
+}
+
 .video-js .vjs-control.vjs-skip-controls {
   width: auto;
   display: flex;

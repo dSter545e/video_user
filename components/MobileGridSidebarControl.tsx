@@ -1,37 +1,26 @@
 "use client";
 
+import { FiVideo } from "react-icons/fi";
+import { MobileGridColumns } from "../lib/mobileGrid";
 import { useMobileGrid } from "./MobileGridProvider";
+import MobileSidebarOptionRow from "./MobileSidebarOptionRow";
+
+const GRID_OPTIONS = [
+  { value: 1 as MobileGridColumns, label: "1" },
+  { value: 2 as MobileGridColumns, label: "2" },
+];
 
 export default function MobileGridSidebarControl() {
   const { columns, setColumns } = useMobileGrid();
 
   return (
-    <div className="mb-5 lg:hidden">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide yt-muted">Video layout (mobile)</p>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setColumns(1)}
-          className={`rounded border px-3 py-2 text-sm font-medium transition ${
-            columns === 1
-              ? "border-[var(--brand)] bg-[var(--brand)] text-white"
-              : "border-[var(--border)] bg-[var(--surface-muted)]"
-          }`}
-        >
-          1 per row
-        </button>
-        <button
-          type="button"
-          onClick={() => setColumns(2)}
-          className={`rounded border px-3 py-2 text-sm font-medium transition ${
-            columns === 2
-              ? "border-[var(--brand)] bg-[var(--brand)] text-white"
-              : "border-[var(--border)] bg-[var(--surface-muted)]"
-          }`}
-        >
-          2 per row
-        </button>
-      </div>
-    </div>
+    <MobileSidebarOptionRow
+      icon={<FiVideo />}
+      label="Videos"
+      value={columns}
+      options={GRID_OPTIONS}
+      onChange={setColumns}
+      groupLabel="Videos per row"
+    />
   );
 }

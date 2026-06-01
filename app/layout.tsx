@@ -6,6 +6,7 @@ import UserFooter from "../components/UserFooter";
 import UserAnalyticsTracker from "../components/UserAnalyticsTracker";
 import { AuthProvider } from "../components/AuthProvider";
 import MobileGridProvider from "../components/MobileGridProvider";
+import ThemeProvider from "../components/ThemeProvider";
 import AgeGateModal from "../components/AgeGateModal";
 import SiteAdShell from "../components/SiteAdShell";
 import ThemeInit from "../components/ThemeInit";
@@ -70,15 +71,17 @@ export default function RootLayout({
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <ThemeInit />
         <AuthProvider>
-          <MobileGridProvider>
-            <div className="yt-shell">
-              <AgeGateModal />
-              <UserAnalyticsTracker />
-              <UserHeader />
-              <SiteAdShell>{children}</SiteAdShell>
-              <UserFooter />
-            </div>
-          </MobileGridProvider>
+          <ThemeProvider>
+            <MobileGridProvider>
+              <div className="yt-shell">
+                <AgeGateModal />
+                <UserAnalyticsTracker />
+                <UserHeader />
+                <SiteAdShell>{children}</SiteAdShell>
+                <UserFooter />
+              </div>
+            </MobileGridProvider>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

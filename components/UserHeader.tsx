@@ -2,20 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useLayoutEffect, useState } from "react";
-import { FiSun, FiMoon, FiMenu, FiX, FiGrid, FiUser } from "react-icons/fi";
+import { useEffect, useState } from "react";
+import { FiSun, FiMoon, FiMenu, FiX, FiGrid, FiUser, FiHome, FiFolder } from "react-icons/fi";
 import { VIEWER_AUTH_CHANGED_EVENT, getViewerUser, ViewerUser } from "../lib/auth";
-import {
-  applyTheme,
-  getStoredTheme,
-  getSystemTheme,
-  persistTheme,
-  readThemeFromDocument,
-  ThemeMode,
-} from "../lib/theme";
 import HeaderSearchBar from "./HeaderSearchBar";
 import HeaderSearchDropdown from "./HeaderSearchDropdown";
 import MobileGridSidebarControl from "./MobileGridSidebarControl";
+import MobileThemeSidebarControl from "./MobileThemeSidebarControl";
+import { useTheme } from "./ThemeProvider";
 
 const Logo = ({ compact = false, onError }: { compact?: boolean; onError: () => void }) => (
   <Link href="/" className="flex shrink-0 items-center font-bold" aria-label="Go to home">
@@ -37,27 +31,10 @@ const Logo = ({ compact = false, onError }: { compact?: boolean; onError: () => 
 );
 
 export default function UserHeader() {
-  const [theme, setTheme] = useState<ThemeMode>("light");
+  const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [viewer, setViewer] = useState<ViewerUser | null>(null);
   const [logoUnavailable, setLogoUnavailable] = useState(false);
-
-  useLayoutEffect(() => {
-    setTheme(readThemeFromDocument());
-  }, []);
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onSystemChange = () => {
-      if (getStoredTheme()) return;
-      const next = getSystemTheme();
-      setTheme(next);
-      applyTheme(next);
-    };
-
-    media.addEventListener("change", onSystemChange);
-    return () => media.removeEventListener("change", onSystemChange);
-  }, []);
 
   useEffect(() => {
     const syncViewer = () => setViewer(getViewerUser());
@@ -77,18 +54,15 @@ export default function UserHeader() {
     };
   }, [mobileMenuOpen]);
 
-  const toggleTheme = () => {
-    const nextTheme: ThemeMode = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    persistTheme(nextTheme);
-    applyTheme(nextTheme);
-  };
-
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
-  const accountActions = (showLabel = false) => (
+  const toggleTheme = () => {
+    setTheme(theme === "light" ? "dark" : "light");
+  };
+
+  const accountActions = (options: { showLabel?: boolean; includeTheme?: boolean }) => (
     <>
-      {showLabel ? (
+      {options.showLabel ? (
         <span className="yt-muted hidden text-sm xl:inline">{viewer ? `Hi, ${viewer.name}` : "Guest"}</span>
       ) : null}
       {viewer ? (
@@ -110,13 +84,15 @@ export default function UserHeader() {
           <FiUser />
         </Link>
       )}
-      <button
-        onClick={toggleTheme}
-        className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
-        aria-label="Toggle theme"
-      >
-        {theme === "light" ? <FiMoon /> : <FiSun />}
-      </button>
+      {options.includeTheme ? (
+        <button
+          onClick={toggleTheme}
+          className="rounded-full border border-[var(--border)] p-2 text-sm hover:bg-[var(--surface-muted)]"
+          aria-label="Toggle theme"
+        >
+          {theme === "light" ? <FiMoon /> : <FiSun />}
+        </button>
+      ) : null}
     </>
   );
 
@@ -144,7 +120,9 @@ export default function UserHeader() {
               Categories
             </Link>
           </nav>
-          <div className="flex shrink-0 items-center gap-2">{accountActions(true)}</div>
+          <div className="flex shrink-0 items-center gap-2">
+            {accountActions({ showLabel: true, includeTheme: true })}
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-3 lg:hidden">
@@ -188,26 +166,45 @@ export default function UserHeader() {
           </button>
         </div>
 
-        <MobileGridSidebarControl />
-
-        <nav className="mb-5 space-y-1 text-sm">
-          <Link
-            href="/"
-            onClick={closeMobileMenu}
-            className="block rounded px-3 py-2 hover:bg-[var(--surface-muted)]"
-          >
-            Home
+        <nav className="mobile-sidebar-nav">
+          <Link href="/" onClick={closeMobileMenu} className="mobile-sidebar-nav__row mobile-sidebar-nav__row--link">
+            <span className="mobile-sidebar-nav__row-main">
+              <span className="mobile-sidebar-nav__row-icon" aria-hidden>
+                <FiHome />
+              </span>
+              <span className="mobile-sidebar-nav__row-label">Home</span>
+            </span>
           </Link>
-          <Link
-            href="/categories"
-            onClick={closeMobileMenu}
-            className="block rounded px-3 py-2 hover:bg-[var(--surface-muted)]"
-          >
-            Categories
+          <Link href="/categories" onClick={closeMobileMenu} className="mobile-sidebar-nav__row mobile-sidebar-nav__row--link">
+            <span className="mobile-sidebar-nav__row-main">
+              <span className="mobile-sidebar-nav__row-icon" aria-hidden>
+                <FiFolder />
+              </span>
+              <span className="mobile-sidebar-nav__row-label">Categories</span>
+            </span>
           </Link>
+          {viewer ? (
+            <Link href="/dashboard" onClick={closeMobileMenu} className="mobile-sidebar-nav__row mobile-sidebar-nav__row--link">
+              <span className="mobile-sidebar-nav__row-main">
+                <span className="mobile-sidebar-nav__row-icon" aria-hidden>
+                  <FiGrid />
+                </span>
+                <span className="mobile-sidebar-nav__row-label">Dashboard</span>
+              </span>
+            </Link>
+          ) : (
+            <Link href="/auth/login" onClick={closeMobileMenu} className="mobile-sidebar-nav__row mobile-sidebar-nav__row--link">
+              <span className="mobile-sidebar-nav__row-main">
+                <span className="mobile-sidebar-nav__row-icon" aria-hidden>
+                  <FiUser />
+                </span>
+                <span className="mobile-sidebar-nav__row-label">Login</span>
+              </span>
+            </Link>
+          )}
+          <MobileThemeSidebarControl />
+          <MobileGridSidebarControl />
         </nav>
-
-        <div className="flex items-center gap-2">{accountActions(false)}</div>
       </aside>
     </header>
   );
