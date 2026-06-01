@@ -9,6 +9,8 @@ type FeaturedCategoriesSectionProps = {
   categories: Category[];
   videos?: Video[];
   showViewAllLink?: boolean;
+  /** `featured` = home section (max 6). `all` = full list on /categories. */
+  mode?: "featured" | "all";
   /** Set on pages where category tiles are above the fold (improves LCP). */
   priorityLeadingImage?: boolean;
 };
@@ -17,12 +19,15 @@ export default function FeaturedCategoriesSection({
   categories,
   videos = [],
   showViewAllLink = true,
+  mode = "featured",
   priorityLeadingImage = false,
 }: FeaturedCategoriesSectionProps) {
-  const featuredCategories = useMemo(
-    () => categories.filter((category) => category.featured).slice(0, 6),
-    [categories]
-  );
+  const displayedCategories = useMemo(() => {
+    if (mode === "all") {
+      return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return categories.filter((category) => category.featured).slice(0, 6);
+  }, [categories, mode]);
 
   const videoCountByCategory = useMemo(() => {
     const counts = new Map<string, number>();
@@ -34,16 +39,20 @@ export default function FeaturedCategoriesSection({
     return counts;
   }, [videos]);
 
-  if (!featuredCategories.length) return null;
+  if (!displayedCategories.length) return null;
+
+  const isAllMode = mode === "all";
 
   return (
     <section className="mb-8">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold sm:text-2xl">Featured Categories</h2>
-          <p className="yt-muted mt-1 text-xs sm:text-sm">Browse videos by your favorite topics.</p>
+          <h2 className="text-xl font-bold sm:text-2xl">{isAllMode ? "All Categories" : "Featured Categories"}</h2>
+          <p className="yt-muted mt-1 text-xs sm:text-sm">
+            {isAllMode ? "Browse every category and its videos." : "Browse videos by your favorite topics."}
+          </p>
         </div>
-        {showViewAllLink ? (
+        {!isAllMode && showViewAllLink ? (
           <Link href="/categories" className="yt-link text-sm font-semibold">
             View all
           </Link>
@@ -51,7 +60,7 @@ export default function FeaturedCategoriesSection({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-        {featuredCategories.map((category, index) => {
+        {displayedCategories.map((category, index) => {
           const videoCount = videoCountByCategory.get(category._id) || 0;
           const isPriorityImage = priorityLeadingImage && index === 0;
           return (

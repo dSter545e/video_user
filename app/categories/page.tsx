@@ -20,7 +20,6 @@ export const metadata: Metadata = {
 
 export default async function CategoriesPage() {
   const [categories, videos] = await Promise.all([getCategoriesApi(), getVideosApi()]);
-  const hasFeaturedCategories = categories.some((category) => category.featured);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[1400px] px-3 py-6 sm:px-6">
@@ -28,10 +27,11 @@ export default async function CategoriesPage() {
         Back to Home
       </Link>
 
-      {hasFeaturedCategories ? (
+      {categories.length ? (
         <FeaturedCategoriesSection
           categories={categories}
           videos={videos}
+          mode="all"
           showViewAllLink={false}
           priorityLeadingImage
         />
