@@ -100,7 +100,7 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
         )}
       </section>
 
-      <AdSlot slot="home_between_sections" />
+      <AdSlot slot="home_between_sections" className="home-between-sections-ad" />
 
       <section className="mb-8">
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -122,6 +122,8 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
           <p className="yt-card p-8 text-center yt-muted">No latest videos yet.</p>
         )}
       </section>
+
+      <AdSlot slot="home_between_sections" className="home-between-sections-ad" />
 
       <section className="mb-8">
         <div className="mb-4 flex items-center justify-between gap-3">

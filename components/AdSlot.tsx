@@ -42,7 +42,7 @@ export function AdInFeed({ index, className = "" }: AdInFeedProps) {
 
   return (
     <div
-      className={`col-span-1 flex w-full items-center justify-center text-center md:col-span-2 lg:col-span-4 ${className}`}
+      className={`listing-in-feed-ad col-span-full flex w-full min-w-0 items-center justify-center text-center ${className}`}
       data-ad-slot="listing_in_feed"
     >
       <AdBanner ad={rotated} />

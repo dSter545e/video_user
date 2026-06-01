@@ -14,5 +14,5 @@ export const persistMobileGridColumns = (columns: MobileGridColumns) => {
 
 export const getVideoGridClassName = (columns: MobileGridColumns) =>
   columns === 2
-    ? "video-grid video-grid--cols-2 grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-5 lg:grid-cols-4"
+    ? "video-grid video-grid--cols-2 grid grid-cols-2 gap-2 md:grid-cols-2 md:gap-5 lg:grid-cols-4"
     : "video-grid video-grid--cols-1 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4";

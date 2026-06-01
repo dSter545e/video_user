@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FiPlay } from "react-icons/fi";
 import { Video } from "../lib/types";
+import { claimVideoPreview, VIDEO_PREVIEW_CLAIM_EVENT, VideoPreviewClaimDetail } from "../lib/videoPreviewCoordinator";
 
 const formatDuration = (seconds?: number, fallback?: string) => {
   if (!seconds || Number.isNaN(seconds)) return fallback || "00:00";
@@ -249,6 +250,8 @@ export default function VideoCard({ video }: VideoCardProps) {
   const playPreview = useCallback(async (): Promise<boolean> => {
     if (!canPreview || !previewRef.current || loadingRef.current) return false;
 
+    claimVideoPreview(video._id);
+
     loadingRef.current = true;
     const videoElement = previewRef.current;
     setPreviewActive(true);
@@ -266,12 +269,23 @@ export default function VideoCard({ video }: VideoCardProps) {
     } finally {
       loadingRef.current = false;
     }
-  }, [canPreview, cleanupPreview, previewSource]);
+  }, [canPreview, cleanupPreview, previewSource, video._id]);
 
   const stopPreview = useCallback(() => {
     cleanupPreview();
     setPreviewActive(false);
   }, [cleanupPreview]);
+
+  useEffect(() => {
+    const onPreviewClaim = (event: Event) => {
+      const ownerId = (event as CustomEvent<VideoPreviewClaimDetail>).detail?.ownerId;
+      if (!ownerId || ownerId === video._id) return;
+      stopPreview();
+    };
+
+    window.addEventListener(VIDEO_PREVIEW_CLAIM_EVENT, onPreviewClaim);
+    return () => window.removeEventListener(VIDEO_PREVIEW_CLAIM_EVENT, onPreviewClaim);
+  }, [video._id, stopPreview]);
 
   const startMobilePreview = () => {
     if (!canPreview || loadingRef.current) return;
@@ -360,7 +374,7 @@ export default function VideoCard({ video }: VideoCardProps) {
             fill
             unoptimized
             className="video-card__thumb"
-            sizes="(max-width: 768px) 50vw, 25vw"
+            sizes="(max-width: 767px) 46vw, 25vw"
           />
         ) : (
           <div className="video-card__thumb flex items-center justify-center yt-muted" aria-hidden>
@@ -397,11 +411,19 @@ export default function VideoCard({ video }: VideoCardProps) {
 
       <Link href={videoHref} className="video-card__body block">
         <h2 className="video-card__title">{video.title}</h2>
-        <div className="video-card__meta">
-          {video.category?.name ? <span>{video.category.name}</span> : null}
-          <span>{formatViews(video.viewsCount)}</span>
-          {video.videoId ? <span>ID {video.videoId}</span> : null}
-        </div>
+        <p className="video-card__meta">
+          {video.category?.name ? (
+            <>
+              <span className="video-card__meta-category">{video.category.name}</span>
+              <span className="video-card__meta-sep" aria-hidden>
+                {" "}
+                ·{" "}
+              </span>
+            </>
+          ) : null}
+          <span className="video-card__meta-views">{formatViews(video.viewsCount)}</span>
+          {video.videoId ? <span className="video-card__meta-id">ID {video.videoId}</span> : null}
+        </p>
       </Link>
     </article>
   );
