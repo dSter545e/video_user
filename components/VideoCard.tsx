@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FiPlay } from "react-icons/fi";
 import { Video } from "../lib/types";
+import { getVideoPosterUrl } from "../lib/videoPoster";
 import { claimVideoPreview, VIDEO_PREVIEW_CLAIM_EVENT, VideoPreviewClaimDetail } from "../lib/videoPreviewCoordinator";
 
 const formatDuration = (seconds?: number, fallback?: string) => {
@@ -115,6 +116,9 @@ export default function VideoCard({ video }: VideoCardProps) {
 
   const previewSource = pickPreviewSource(video);
   const canPreview = isPlayableUrl(previewSource);
+  const posterUrl = getVideoPosterUrl(video);
+  const useVideoFramePoster =
+    Boolean(posterUrl) && !video.thumbnail?.trim() && /\.(mp4|webm|mov)(\?|$)/i.test(posterUrl);
   const videoHref = `/videos/${video.slug || video._id}`;
 
   const cleanupPreview = useCallback(() => {
@@ -367,9 +371,18 @@ export default function VideoCard({ video }: VideoCardProps) {
           }
         }}
       >
-        {video.thumbnail ? (
+        {useVideoFramePoster ? (
+          <video
+            src={posterUrl}
+            muted
+            playsInline
+            preload="metadata"
+            className="video-card__thumb"
+            aria-hidden
+          />
+        ) : posterUrl ? (
           <Image
-            src={video.thumbnail}
+            src={posterUrl}
             alt=""
             fill
             unoptimized
@@ -378,7 +391,7 @@ export default function VideoCard({ video }: VideoCardProps) {
           />
         ) : (
           <div className="video-card__thumb flex items-center justify-center yt-muted" aria-hidden>
-            No thumbnail
+            No preview
           </div>
         )}
 

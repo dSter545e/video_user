@@ -7,6 +7,7 @@ import VideoPlayerWithAds from "./VideoPlayerWithAds";
 import VideoCard from "./VideoCard";
 import { addVideoCommentApi, getRecommendedVideosApi, reactToVideoApi, trackVideoViewApi } from "../lib/api";
 import { Video, VideoComment } from "../lib/types";
+import { getVideoPosterUrl } from "../lib/videoPoster";
 import { getViewerUser } from "../lib/auth";
 import { emitAnalyticsEvent } from "../lib/analytics";
 import AdSlot, { AdInFeed } from "./AdSlot";
@@ -66,6 +67,7 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
   }, [video._id, video.recommendedVideos]);
 
   const tagsText = useMemo(() => (video.tags || []).map((tag) => `#${tag.displayName}`).join(" "), [video.tags]);
+  const posterUrl = useMemo(() => getVideoPosterUrl(video), [video]);
 
   const handlePlayedSeconds = useCallback(async (seconds: number) => {
     const rounded = Math.round(seconds);
@@ -126,7 +128,7 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
       <div className="yt-card rounded-none p-1 sm:p-2">
         <VideoPlayerWithAds
           src={video.videoUrl}
-          poster={video.thumbnail}
+          poster={posterUrl || undefined}
           qualityVariants={(video.qualityVariants || []).map((item) => ({
             src: item.url,
             label: item.label,

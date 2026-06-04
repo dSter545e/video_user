@@ -3,6 +3,7 @@ import VideoWatchClient from "../../../components/VideoWatchClient";
 import { getVideoByIdApi, getVideoCommentsApi } from "../../../lib/api";
 import { buildPageMetadata } from "../../../lib/pageMetadata";
 import { SEO, absoluteUrl } from "../../../lib/seo";
+import { getVideoPosterUrl } from "../../../lib/videoPoster";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export async function generateMetadata({ params }: VideoWatchPageProps) {
     title: video.title,
     description,
     canonicalPath: path,
-    ogImage: video.thumbnail,
+    ogImage: getVideoPosterUrl(video) || undefined,
     ogType: "video.other",
   });
 }
@@ -52,12 +53,13 @@ export default async function VideoWatchPage({ params }: VideoWatchPageProps) {
     );
   }
 
+  const posterUrl = getVideoPosterUrl(video);
   const videoJsonLd = {
     "@context": "https://schema.org",
     "@type": "VideoObject",
     name: video.title,
     description: video.description || `Watch ${video.title} on ${SEO.siteName}.`,
-    thumbnailUrl: video.thumbnail ? [absoluteUrl(video.thumbnail)] : undefined,
+    thumbnailUrl: posterUrl ? [absoluteUrl(posterUrl)] : undefined,
     uploadDate: video.createdAt,
     contentUrl: absoluteUrl(`/videos/${video.slug || video._id}`),
     interactionStatistic: {

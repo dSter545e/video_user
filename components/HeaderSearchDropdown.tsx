@@ -7,6 +7,7 @@ import { CSSProperties, FormEvent, useCallback, useEffect, useId, useLayoutEffec
 import { FiSearch, FiX } from "react-icons/fi";
 import { getPaginatedVideosApi } from "../lib/api";
 import { Video } from "../lib/types";
+import { getVideoPosterUrl } from "../lib/videoPoster";
 
 type HeaderSearchDropdownProps = {
   onNavigate?: () => void;
@@ -200,7 +201,9 @@ export default function HeaderSearchDropdown({
               <p className="yt-muted px-4 py-3 text-sm">No videos found for &quot;{query.trim()}&quot;.</p>
             ) : (
               <ul className="py-1">
-                {results.map((video) => (
+                {results.map((video) => {
+                  const posterUrl = getVideoPosterUrl(video);
+                  return (
                   <li key={video._id}>
                     <Link
                       href={videoHref(video)}
@@ -211,9 +214,9 @@ export default function HeaderSearchDropdown({
                       className="flex gap-3 px-3 py-2 hover:bg-[var(--surface-muted)]"
                     >
                       <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded bg-[var(--surface-muted)]">
-                        {video.thumbnail ? (
+                        {posterUrl ? (
                           <Image
-                            src={video.thumbnail}
+                            src={posterUrl}
                             alt=""
                             fill
                             sizes="80px"
@@ -231,7 +234,8 @@ export default function HeaderSearchDropdown({
                       </div>
                     </Link>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
 
