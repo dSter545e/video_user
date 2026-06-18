@@ -101,7 +101,7 @@ button {
   position: relative;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  background: var(--surface-muted);
+  background: #000;
   touch-action: manipulation;
 }
 
@@ -111,12 +111,13 @@ button {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  transition: opacity 0.15s ease, transform 0.3s ease;
+  object-fit: contain;
+  object-position: center center;
+  transition: opacity 0.15s ease;
 }
 
 .video-card:hover .video-card__thumb {
-  transform: scale(1.04);
+  transform: none;
 }
 
 .video-card--previewing .video-card__thumb {
@@ -656,6 +657,7 @@ body[data-theme="dark"] .watch-player-frame {
 .related-video-item__thumb .video-card__media {
   aspect-ratio: auto;
   height: 100%;
+  width: 100%;
 }
 
 .related-video-item__thumb .video-card__duration {

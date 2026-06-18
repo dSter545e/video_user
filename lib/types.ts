@@ -9,6 +9,8 @@ export type Video = {
   videoUrl: string;
   duration?: string;
   durationSeconds?: number;
+  sourceWidth?: number;
+  sourceHeight?: number;
   createdAt?: string;
   qualityVariants?: Array<{
     label: string;
