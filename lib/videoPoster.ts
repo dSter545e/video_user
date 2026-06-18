@@ -36,5 +36,9 @@ export const getVideoPosterUrl = (video: Video) => {
     return video.videoUrl.trim();
   }
 
+  if (isUsableMediaUrl(video.previewUrl)) {
+    return video.previewUrl.trim();
+  }
+
   return "";
 };

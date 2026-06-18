@@ -8,6 +8,7 @@ import RelatedVideoItem from "./RelatedVideoItem";
 import { addVideoCommentApi, getRecommendedVideosApi, reactToVideoApi, trackVideoViewApi } from "../lib/api";
 import { Video, VideoComment } from "../lib/types";
 import { getVideoPosterImageUrl } from "../lib/videoPoster";
+import { isVideoPlayable, resolveWatchPlaybackSrc } from "../lib/videoPlayback";
 import { getViewerUser } from "../lib/auth";
 import { emitAnalyticsEvent } from "../lib/analytics";
 import AdSlot, { AdInFeed } from "./AdSlot";
@@ -66,6 +67,17 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
 
   const tagsText = useMemo(() => (video.tags || []).map((tag) => `#${tag.displayName}`).join(" "), [video.tags]);
   const posterUrl = useMemo(() => getVideoPosterImageUrl(video), [video]);
+  const playbackSrc = useMemo(() => resolveWatchPlaybackSrc(video), [video]);
+  const playable = useMemo(() => isVideoPlayable(video), [video]);
+  const qualityVariants = useMemo(
+    () =>
+      (video.qualityVariants || []).map((item) => ({
+        src: item.url,
+        label: item.label,
+        height: item.height,
+      })),
+    [video.qualityVariants]
+  );
 
   const handlePlayedSeconds = useCallback(async (seconds: number) => {
     const rounded = Math.round(seconds);
@@ -125,16 +137,27 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
     <main className="watch-page mx-auto w-full max-w-[1600px]">
       <div className="watch-page__layout flex flex-col lg:flex-row lg:items-start">
         <div className="watch-page__primary min-w-0 lg:w-3/4">
-          <VideoPlayerWithAds
-            src={video.videoUrl}
-            poster={posterUrl || undefined}
-            qualityVariants={(video.qualityVariants || []).map((item) => ({
-              src: item.url,
-              label: item.label,
-              height: item.height,
-            }))}
-            onPlayedSeconds={handlePlayedSeconds}
-          />
+          {playable ? (
+            <VideoPlayerWithAds
+              src={playbackSrc}
+              poster={posterUrl || undefined}
+              qualityVariants={qualityVariants}
+              onPlayedSeconds={handlePlayedSeconds}
+            />
+          ) : (
+            <div className="watch-player-frame flex min-h-[220px] items-center justify-center bg-black px-6 py-10 text-center text-white">
+              <div>
+                <p className="text-base font-semibold sm:text-lg">
+                  {video.processingStatus === "processing" ? "Video is processing" : "Video unavailable"}
+                </p>
+                <p className="mt-2 text-sm text-white/70">
+                  {video.processingStatus === "processing"
+                    ? "Encoding is still running. Refresh this page in a few minutes."
+                    : "This upload did not finish processing. Re-upload from Admin or check the server logs."}
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="watch-page__details">
             <AdSlot slot="watch_below_player" />

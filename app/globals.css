@@ -538,7 +538,7 @@ body[data-theme="dark"] .watch-player-frame {
   opacity: 1 !important;
 }
 
-.video-player-shell .video-js > .vjs-poster {
+.video-player-shell .video-js:not(.vjs-has-started) > .vjs-poster {
   background-color: #000 !important;
   background-image: none !important;
   display: flex !important;
@@ -547,7 +547,15 @@ body[data-theme="dark"] .watch-player-frame {
   overflow: hidden;
 }
 
-.video-player-shell .video-js > .vjs-poster picture {
+.video-player-shell .video-js.vjs-has-started > .vjs-poster,
+.video-player-shell .video-js.vjs-playing > .vjs-poster {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.video-player-shell .video-js:not(.vjs-has-started) > .vjs-poster picture {
   position: static !important;
   display: flex !important;
   align-items: center !important;
@@ -558,7 +566,7 @@ body[data-theme="dark"] .watch-player-frame {
   padding: 0 !important;
 }
 
-.video-player-shell .video-js > .vjs-poster picture img {
+.video-player-shell .video-js:not(.vjs-has-started) > .vjs-poster picture img {
   position: static !important;
   transform: none !important;
   width: 100% !important;
@@ -633,8 +641,49 @@ body[data-theme="dark"] .watch-player-frame {
 }
 
 .related-video-item {
+  color: inherit;
+}
+
+.related-video-item__body {
   text-decoration: none;
   color: inherit;
+}
+
+.related-video-item__thumb {
+  touch-action: manipulation;
+}
+
+.related-video-item__thumb .video-card__media {
+  aspect-ratio: auto;
+  height: 100%;
+}
+
+.related-video-item__thumb .video-card__duration {
+  right: 4px;
+  bottom: 4px;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+.related-video-item__thumb .video-card__badge {
+  left: 4px;
+  top: 4px;
+  padding: 2px 6px;
+  font-size: 9px;
+}
+
+.related-video-item__thumb .pointer-events-none span {
+  height: 2rem;
+  width: 2rem;
+}
+
+.related-video-item__thumb .pointer-events-none svg {
+  height: 0.875rem;
+  width: 0.875rem;
+}
+
+.related-video-item.video-card--previewing .related-video-item__title {
+  color: var(--brand);
 }
 
 .video-player-with-ads .video-preroll-ad {

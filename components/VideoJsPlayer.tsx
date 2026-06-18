@@ -205,9 +205,6 @@ const fixWatchPlayerLayout = (player: VideoJsPlayerInstance) => {
   if (posterEl) {
     posterEl.style.backgroundImage = "none";
     posterEl.style.backgroundColor = "#000";
-    posterEl.style.display = "flex";
-    posterEl.style.alignItems = "center";
-    posterEl.style.justifyContent = "center";
 
     const picture = posterEl.querySelector("picture") as HTMLElement | null;
     if (picture) {
@@ -243,6 +240,17 @@ const fixWatchPlayerLayout = (player: VideoJsPlayerInstance) => {
   }
 };
 
+const hidePosterOnPlay = (player: VideoJsPlayerInstance) => {
+  const root = player.el() as HTMLElement | undefined;
+  const posterEl = root?.querySelector(":scope > .vjs-poster") as HTMLElement | null;
+  if (posterEl) {
+    posterEl.style.display = "none";
+    posterEl.style.visibility = "hidden";
+    posterEl.style.opacity = "0";
+    posterEl.style.pointerEvents = "none";
+  }
+};
+
 const bindWatchPlayerLayout = (player: VideoJsPlayerInstance, attachEvents = false) => {
   fixWatchPlayerLayout(player);
   if (!attachEvents) return;
@@ -250,6 +258,8 @@ const bindWatchPlayerLayout = (player: VideoJsPlayerInstance, attachEvents = fal
   player.on("loadeddata", () => fixWatchPlayerLayout(player));
   player.on("posterchange", () => fixWatchPlayerLayout(player));
   player.on("ready", () => fixWatchPlayerLayout(player));
+  player.on("play", () => hidePosterOnPlay(player));
+  player.on("playing", () => hidePosterOnPlay(player));
 
   const root = player.el() as HTMLElement | undefined;
   const posterEl = root?.querySelector(":scope > .vjs-poster");
@@ -278,7 +288,7 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
   }, [qualityVariants, src]);
 
   useEffect(() => {
-    if (!containerRef.current || !src) return;
+    if (!containerRef.current || !src || src === "about:blank" || !src.includes(".")) return;
     const orderedSources = buildOrderedSources(src, qualityVariants);
     const sources =
       selectedSource === "auto"
@@ -298,7 +308,7 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
         responsive: false,
         fluid: false,
         fill: true,
-        preload: "metadata",
+        preload: "auto",
         poster: safePoster,
         sources,
       });
