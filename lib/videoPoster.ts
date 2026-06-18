@@ -2,7 +2,8 @@ import { Video } from "./types";
 
 const isHlsUrl = (url: string) => /\.m3u8(\?|$)/i.test(url);
 
-const isUsableMediaUrl = (url?: string) => Boolean(url && url.trim() && url !== "about:blank" && url.startsWith("http"));
+const isUsableMediaUrl = (url?: string): url is string =>
+  Boolean(url && url.trim() && url !== "about:blank" && url.startsWith("http"));
 
 const isImagePosterUrl = (url?: string) => {
   if (!isUsableMediaUrl(url)) return false;
