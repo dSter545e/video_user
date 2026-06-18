@@ -179,10 +179,92 @@ const attachQualityControl = (
   controlBarEl.appendChild(wrapper);
 };
 
+const isImagePosterUrl = (url?: string) =>
+  Boolean(url && /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(url));
+
+const fixWatchPlayerLayout = (player: VideoJsPlayerInstance) => {
+  if (!player || (typeof player.isDisposed === "function" && player.isDisposed())) return;
+
+  if (typeof player.fill === "function") {
+    player.fill(true);
+  }
+  if (typeof player.fluid === "function") {
+    player.fluid(false);
+  }
+
+  const root = player.el() as HTMLElement | undefined;
+  if (!root) return;
+
+  root.classList.remove("vjs-9-16", "vjs-1-1", "vjs-4-3", "vjs-16-9", "vjs-fluid");
+  root.classList.add("vjs-fill", "watch-video-js");
+  root.style.width = "100%";
+  root.style.height = "100%";
+  root.style.paddingTop = "0";
+
+  const posterEl = root.querySelector(":scope > .vjs-poster") as HTMLElement | null;
+  if (posterEl) {
+    posterEl.style.backgroundImage = "none";
+    posterEl.style.backgroundColor = "#000";
+    posterEl.style.display = "flex";
+    posterEl.style.alignItems = "center";
+    posterEl.style.justifyContent = "center";
+
+    const picture = posterEl.querySelector("picture") as HTMLElement | null;
+    if (picture) {
+      picture.style.position = "static";
+      picture.style.width = "100%";
+      picture.style.height = "100%";
+      picture.style.display = "flex";
+      picture.style.alignItems = "center";
+      picture.style.justifyContent = "center";
+      picture.style.margin = "0";
+      picture.style.padding = "0";
+    }
+
+    const centerPosterImage = (img: HTMLImageElement) => {
+      img.style.position = "static";
+      img.style.transform = "none";
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.maxWidth = "100%";
+      img.style.maxHeight = "100%";
+      img.style.objectFit = "contain";
+      img.style.objectPosition = "center center";
+    };
+
+    const img = posterEl.querySelector("img") as HTMLImageElement | null;
+    if (img) {
+      centerPosterImage(img);
+      if (!img.dataset.centerBound) {
+        img.dataset.centerBound = "true";
+        img.addEventListener("load", () => centerPosterImage(img));
+      }
+    }
+  }
+};
+
+const bindWatchPlayerLayout = (player: VideoJsPlayerInstance, attachEvents = false) => {
+  fixWatchPlayerLayout(player);
+  if (!attachEvents) return;
+  player.on("loadedmetadata", () => fixWatchPlayerLayout(player));
+  player.on("loadeddata", () => fixWatchPlayerLayout(player));
+  player.on("posterchange", () => fixWatchPlayerLayout(player));
+  player.on("ready", () => fixWatchPlayerLayout(player));
+
+  const root = player.el() as HTMLElement | undefined;
+  const posterEl = root?.querySelector(":scope > .vjs-poster");
+  if (posterEl && typeof MutationObserver !== "undefined") {
+    const observer = new MutationObserver(() => fixWatchPlayerLayout(player));
+    observer.observe(posterEl, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "style"] });
+    player.on("dispose", () => observer.disconnect());
+  }
+};
+
 export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPlayedSeconds }: VideoJsPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<VideoJsPlayerInstance | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("auto");
+  const safePoster = isImagePosterUrl(poster) ? poster : undefined;
 
   const qualityOptions = useMemo(() => {
     const uniqueBySrc = new Map<string, VideoSource>();
@@ -213,12 +295,14 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
 
       playerRef.current = videojs(videoElement, {
         controls: true,
-        responsive: true,
-        fluid: true,
-        preload: "auto",
-        poster,
+        responsive: false,
+        fluid: false,
+        fill: true,
+        preload: "metadata",
+        poster: safePoster,
         sources,
       });
+      bindWatchPlayerLayout(playerRef.current, true);
       attachTimeControls(playerRef.current);
       attachSkipControls(playerRef.current);
       attachQualityControl(playerRef.current, qualityOptions, selectedSource, setSelectedSource);
@@ -235,7 +319,8 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
       return;
     }
 
-    player.poster(poster || "");
+    player.poster(safePoster || "");
+    fixWatchPlayerLayout(player);
     const currentTime = player.currentTime() || 0;
     player.src(sources);
     if (typeof player.one === "function") {
@@ -253,7 +338,7 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
     }
     attachTimeControls(player);
     attachQualityControl(player, qualityOptions, selectedSource, setSelectedSource);
-  }, [src, poster, qualityVariants, selectedSource, qualityOptions, onPlayedSeconds]);
+  }, [src, safePoster, qualityVariants, selectedSource, qualityOptions, onPlayedSeconds]);
 
   useEffect(() => {
     return () => {

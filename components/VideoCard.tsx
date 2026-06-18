@@ -8,6 +8,8 @@ import { FiPlay } from "react-icons/fi";
 import { Video } from "../lib/types";
 import { getVideoPosterUrl } from "../lib/videoPoster";
 import { claimVideoPreview, VIDEO_PREVIEW_CLAIM_EVENT, VideoPreviewClaimDetail } from "../lib/videoPreviewCoordinator";
+import { getHlsModule, preloadHlsModule, type HlsConstructor } from "../lib/hlsPreviewLoader";
+import { isHlsSource, isPlayablePreviewUrl, pickPreviewSource } from "../lib/videoPreviewSource";
 
 const formatDuration = (seconds?: number, fallback?: string) => {
   if (!seconds || Number.isNaN(seconds)) return fallback || "00:00";
@@ -32,26 +34,7 @@ type VideoCardProps = {
   video: Video;
 };
 
-type HlsConstructor = typeof import("hls.js").default;
-
-const isHlsSource = (url: string) => /\.m3u8(\?|$)/i.test(url);
-
-const isPlayableUrl = (url?: string) => Boolean(url && url !== "about:blank" && url.startsWith("http"));
-
-const pickPreviewSource = (video: Video) => {
-  const variants = [...(video.qualityVariants || [])]
-    .filter((variant) => isPlayableUrl(variant.url))
-    .sort((a, b) => (a.height || 0) - (b.height || 0));
-
-  const progressive = variants.find((variant) => !isHlsSource(variant.url));
-  if (progressive?.url) return progressive.url;
-
-  const lowHls = variants.find((variant) => (variant.height || 0) <= 480) || variants[0];
-  if (lowHls?.url) return lowHls.url;
-
-  if (isPlayableUrl(video.videoUrl)) return video.videoUrl;
-  return "";
-};
+const PREVIEW_IDLE_MS = 45000;
 
 const buildPreviewSegments = (duration: number) => {
   if (!duration || Number.isNaN(duration) || duration <= 0) {
@@ -103,25 +86,61 @@ const useHoverPreview = () => {
 export default function VideoCard({ video }: VideoCardProps) {
   const router = useRouter();
   const hoverPreview = useHoverPreview();
+  const mediaRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<InstanceType<HlsConstructor> | null>(null);
-  const hlsModuleRef = useRef<HlsConstructor | null>(null);
   const activeSourceRef = useRef("");
   const segmentBoundsRef = useRef<Array<{ start: number; end: number }>>([]);
   const segmentIndexRef = useRef(0);
   const loadingRef = useRef(false);
+  const warmedRef = useRef(false);
   const mobilePinnedRef = useRef(false);
+  const idleCleanupRef = useRef<number | null>(null);
 
   const [previewActive, setPreviewActive] = useState(false);
 
   const previewSource = pickPreviewSource(video);
-  const canPreview = isPlayableUrl(previewSource);
+  const usesPreviewClip = Boolean(video.previewUrl && previewSource === video.previewUrl);
+  const canPreview = isPlayablePreviewUrl(previewSource);
   const posterUrl = getVideoPosterUrl(video);
   const useVideoFramePoster =
     Boolean(posterUrl) && !video.thumbnail?.trim() && /\.(mp4|webm|mov)(\?|$)/i.test(posterUrl);
   const videoHref = `/videos/${video.slug || video._id}`;
 
+  useEffect(() => {
+    void preloadHlsModule();
+  }, []);
+
+  const clearIdleCleanup = useCallback(() => {
+    if (idleCleanupRef.current !== null) {
+      window.clearTimeout(idleCleanupRef.current);
+      idleCleanupRef.current = null;
+    }
+  }, []);
+
+  const scheduleIdleCleanup = useCallback(() => {
+    clearIdleCleanup();
+    idleCleanupRef.current = window.setTimeout(() => {
+      if (previewRef.current && !previewRef.current.paused) return;
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      const videoElement = previewRef.current;
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.removeAttribute("src");
+        videoElement.load();
+      }
+      activeSourceRef.current = "";
+      segmentBoundsRef.current = [];
+      segmentIndexRef.current = 0;
+      warmedRef.current = false;
+    }, PREVIEW_IDLE_MS);
+  }, [clearIdleCleanup]);
+
   const cleanupPreview = useCallback(() => {
+    clearIdleCleanup();
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
@@ -136,10 +155,18 @@ export default function VideoCard({ video }: VideoCardProps) {
     segmentBoundsRef.current = [];
     segmentIndexRef.current = 0;
     loadingRef.current = false;
+    warmedRef.current = false;
     mobilePinnedRef.current = false;
-  }, []);
+  }, [clearIdleCleanup]);
 
-  useEffect(() => cleanupPreview, [cleanupPreview]);
+  useEffect(() => () => cleanupPreview(), [cleanupPreview]);
+
+  useEffect(() => {
+    if (activeSourceRef.current && activeSourceRef.current !== previewSource) {
+      cleanupPreview();
+      setPreviewActive(false);
+    }
+  }, [cleanupPreview, previewSource]);
 
   const waitForLoadedMetadata = (videoElement: HTMLVideoElement) =>
     new Promise<void>((resolve, reject) => {
@@ -152,7 +179,7 @@ export default function VideoCard({ video }: VideoCardProps) {
         videoElement.removeEventListener("loadedmetadata", onLoadedMetadata);
         videoElement.removeEventListener("error", onError);
         reject(new Error("Metadata timeout"));
-      }, 12000);
+      }, 8000);
 
       const onLoadedMetadata = () => {
         window.clearTimeout(timeout);
@@ -192,19 +219,18 @@ export default function VideoCard({ video }: VideoCardProps) {
         videoElement.load();
         await waitForLoadedMetadata(videoElement);
       } else {
-        if (!hlsModuleRef.current) {
-          const module = await import("hls.js");
-          hlsModuleRef.current = module.default;
-        }
-        const Hls = hlsModuleRef.current;
+        const Hls = await getHlsModule();
         if (!Hls.isSupported()) {
           throw new Error("HLS is not supported");
         }
         await new Promise<void>((resolve, reject) => {
           const hls = new Hls({
             enableWorker: true,
-            maxBufferLength: 10,
-            maxMaxBufferLength: 20,
+            startLevel: 0,
+            autoStartLoad: true,
+            maxBufferLength: 4,
+            maxMaxBufferLength: 8,
+            maxLoadingDelay: 2,
           });
           hlsRef.current = hls;
           hls.loadSource(source);
@@ -217,6 +243,7 @@ export default function VideoCard({ video }: VideoCardProps) {
       }
     } else {
       videoElement.src = source;
+      videoElement.preload = "auto";
       videoElement.load();
       await waitForLoadedMetadata(videoElement);
     }
@@ -238,7 +265,7 @@ export default function VideoCard({ video }: VideoCardProps) {
 
   const prepareSegments = (videoElement: HTMLVideoElement) => {
     const duration = videoElement.duration || video.durationSeconds || 0;
-    segmentBoundsRef.current = buildPreviewSegments(duration);
+    segmentBoundsRef.current = usesPreviewClip ? [{ start: 0, end: duration || 6 }] : buildPreviewSegments(duration);
     segmentIndexRef.current = 0;
   };
 
@@ -251,19 +278,48 @@ export default function VideoCard({ video }: VideoCardProps) {
     void videoElement.play().catch(() => {});
   };
 
+  const warmPreview = useCallback(async () => {
+    if (!canPreview || !previewRef.current || loadingRef.current || warmedRef.current) return;
+
+    loadingRef.current = true;
+    const videoElement = previewRef.current;
+
+    try {
+      await attachPreviewSource(videoElement, previewSource);
+      prepareSegments(videoElement);
+      videoElement.currentTime = segmentBoundsRef.current[0]?.start || 0;
+      videoElement.pause();
+      warmedRef.current = true;
+    } catch {
+      warmedRef.current = false;
+    } finally {
+      loadingRef.current = false;
+    }
+  }, [canPreview, previewSource, usesPreviewClip, video.durationSeconds]);
+
   const playPreview = useCallback(async (): Promise<boolean> => {
     if (!canPreview || !previewRef.current || loadingRef.current) return false;
 
     claimVideoPreview(video._id);
+    clearIdleCleanup();
+
+    const videoElement = previewRef.current;
+
+    if (warmedRef.current && activeSourceRef.current === previewSource) {
+      setPreviewActive(true);
+      unlockPlayback(videoElement);
+      await jumpToSegment(videoElement, 0);
+      return true;
+    }
 
     loadingRef.current = true;
-    const videoElement = previewRef.current;
     setPreviewActive(true);
     unlockPlayback(videoElement);
 
     try {
       await attachPreviewSource(videoElement, previewSource);
       prepareSegments(videoElement);
+      warmedRef.current = true;
       await jumpToSegment(videoElement, 0);
       return true;
     } catch {
@@ -273,7 +329,16 @@ export default function VideoCard({ video }: VideoCardProps) {
     } finally {
       loadingRef.current = false;
     }
-  }, [canPreview, cleanupPreview, previewSource, video._id]);
+  }, [canPreview, cleanupPreview, clearIdleCleanup, previewSource, usesPreviewClip, video._id, video.durationSeconds]);
+
+  const pausePreview = useCallback(() => {
+    const videoElement = previewRef.current;
+    if (videoElement) {
+      videoElement.pause();
+    }
+    setPreviewActive(false);
+    scheduleIdleCleanup();
+  }, [scheduleIdleCleanup]);
 
   const stopPreview = useCallback(() => {
     cleanupPreview();
@@ -291,6 +356,25 @@ export default function VideoCard({ video }: VideoCardProps) {
     return () => window.removeEventListener(VIDEO_PREVIEW_CLAIM_EVENT, onPreviewClaim);
   }, [video._id, stopPreview]);
 
+  useEffect(() => {
+    if (!hoverPreview || !canPreview) return;
+    const node = mediaRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          void warmPreview();
+        }
+      },
+      { rootMargin: "120px 0px", threshold: 0.2 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [canPreview, hoverPreview, warmPreview]);
+
   const startMobilePreview = () => {
     if (!canPreview || loadingRef.current) return;
     mobilePinnedRef.current = true;
@@ -304,7 +388,7 @@ export default function VideoCard({ video }: VideoCardProps) {
 
   const handleMediaPointerLeave = () => {
     if (!hoverPreview || !previewActive) return;
-    stopPreview();
+    pausePreview();
   };
 
   const handleMediaClick = () => {
@@ -339,6 +423,11 @@ export default function VideoCard({ video }: VideoCardProps) {
     if (videoElement.currentTime >= currentSegment.end - 0.05) {
       const nextIndex = segmentIndexRef.current + 1;
       if (nextIndex >= segments.length) {
+        if (usesPreviewClip) {
+          videoElement.currentTime = 0;
+          void videoElement.play().catch(() => {});
+          return;
+        }
         videoElement.pause();
         videoElement.currentTime = currentSegment.start;
         return;
@@ -350,6 +439,7 @@ export default function VideoCard({ video }: VideoCardProps) {
   return (
     <article className={`video-card group ${previewActive ? "video-card--previewing" : ""}`}>
       <div
+        ref={mediaRef}
         className="video-card__media"
         onPointerEnter={handleMediaPointerEnter}
         onPointerLeave={handleMediaPointerLeave}

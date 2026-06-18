@@ -112,7 +112,7 @@ button {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: opacity 0.3s ease, transform 0.45s ease;
+  transition: opacity 0.15s ease, transform 0.3s ease;
 }
 
 .video-card:hover .video-card__thumb {
@@ -459,36 +459,187 @@ html[data-theme="dark"] .mobile-sidebar-nav__segment-btn--active {
 }
 
 .video-player-shell {
+  margin: 0;
+  padding: 0;
+  border: none;
   border-radius: 0;
   overflow: hidden;
   background: #000;
+  box-shadow: none;
+  width: 100%;
+  height: 100%;
 }
 
-.video-player-shell .video-js {
+.watch-player-frame {
+  position: relative;
   width: 100%;
-  aspect-ratio: 9 / 16;
-  max-height: min(82vh, 900px);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #000;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.14),
+    0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme="dark"] .watch-player-frame,
+html[data-theme="dark"] .watch-player-frame,
+body[data-theme="dark"] .watch-player-frame {
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.45),
+    0 8px 36px rgba(0, 0, 0, 0.35);
+}
+
+.video-player-with-ads {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   background: #000;
 }
 
+.watch-player-frame .video-player-shell,
+.watch-player-frame .video-js.watch-video-js,
+.watch-player-frame .video-js.vjs-fill {
+  width: 100% !important;
+  height: 100% !important;
+  padding-top: 0 !important;
+  aspect-ratio: unset !important;
+}
+
+.watch-player-frame .video-js.vjs-16-9,
+.watch-player-frame .video-js.vjs-9-16,
+.watch-player-frame .video-js.vjs-1-1,
+.watch-player-frame .video-js.vjs-4-3,
+.watch-player-frame .video-js.vjs-fluid {
+  width: 100% !important;
+  height: 100% !important;
+  padding-top: 0 !important;
+}
+
+.video-player-shell .video-js {
+  background: #000 !important;
+}
+
 .video-player-shell .video-js .vjs-tech {
-  object-fit: cover;
+  object-fit: contain !important;
   object-position: center;
+  background: #000 !important;
 }
 
-.video-player-shell .video-js .vjs-poster {
-  background-size: cover !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
+.video-player-shell .video-js:not(.vjs-has-started) .vjs-tech {
+  visibility: hidden !important;
+  opacity: 0 !important;
 }
 
-.video-player-shell .video-js .vjs-poster img {
-  object-fit: cover !important;
-  object-position: center !important;
+.video-player-shell .video-js.vjs-has-started .vjs-tech {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.video-player-shell .video-js > .vjs-poster {
+  background-color: #000 !important;
+  background-image: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden;
+}
+
+.video-player-shell .video-js > .vjs-poster picture {
+  position: static !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.video-player-shell .video-js > .vjs-poster picture img {
+  position: static !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  background: transparent !important;
+}
+
+.watch-page {
+  margin: 0 auto;
+  padding: 1rem 0.75rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .watch-page {
+    padding: 1.25rem 1.25rem 1.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .watch-page {
+    padding: 1.5rem 1.5rem 2rem;
+  }
+}
+
+.watch-page__layout {
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .watch-page__layout {
+    gap: 1.5rem;
+  }
+}
+
+.watch-page__details {
+  padding-top: 1rem;
+}
+
+.watch-page__sidebar {
+  align-self: flex-start;
+  padding-top: 0.5rem;
+}
+
+@media (min-width: 1024px) {
+  .watch-page__sidebar {
+    padding-top: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .watch-page__sidebar {
+    position: sticky;
+    top: 72px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+}
+
+.watch-page__action {
+  border: none;
+  background: transparent;
+  color: var(--foreground);
+  padding: 0;
+}
+
+.watch-page__action:hover {
+  color: var(--brand);
+}
+
+.related-video-item {
+  text-decoration: none;
+  color: inherit;
 }
 
 .video-player-with-ads .video-preroll-ad {
-  min-height: 220px;
+  aspect-ratio: 16 / 9;
+  width: 100%;
 }
 
 .popup-ad-overlay {

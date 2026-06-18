@@ -5,6 +5,7 @@ export type Video = {
   title: string;
   description: string;
   thumbnail: string;
+  previewUrl?: string;
   videoUrl: string;
   duration?: string;
   durationSeconds?: number;
@@ -24,11 +25,11 @@ export type Video = {
   userReaction?: "like" | "dislike" | null;
   tags?: VideoTag[];
   recommendedVideos?: Video[];
-  category: {
+  category?: {
     _id: string;
     name: string;
     imageUrl: string;
-  };
+  } | null;
 };
 
 export type VideoTag = {

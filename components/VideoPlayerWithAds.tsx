@@ -29,18 +29,18 @@ export default function VideoPlayerWithAds(props: VideoPlayerWithAdsProps) {
   const showMainPlayer = !prerollAd || prerollDone;
 
   return (
-    <div className="video-player-with-ads relative">
-      <div className="video-player-shell relative min-h-[220px] bg-black">
+    <div className="watch-player-frame">
+      <div className="video-player-with-ads relative h-full w-full bg-black">
         {showPreroll ? <PrerollAd ad={prerollAd} onComplete={() => setPrerollDone(true)} /> : null}
-        {showMainPlayer ? <VideoJsPlayer {...props} /> : <div className="aspect-video w-full bg-black" aria-hidden />}
-      </div>
-      {!loading && overlayAd && prerollDone ? (
-        <div className="pointer-events-none absolute bottom-14 left-1/2 z-10 w-full max-w-[min(100%,320px)] -translate-x-1/2">
-          <div className="pointer-events-auto flex justify-center">
-            <AdBanner ad={overlayAd} />
+        {showMainPlayer ? <VideoJsPlayer {...props} /> : <div className="h-full w-full bg-black" aria-hidden />}
+        {!loading && overlayAd && prerollDone ? (
+          <div className="pointer-events-none absolute bottom-14 left-1/2 z-10 w-full max-w-[min(100%,320px)] -translate-x-1/2">
+            <div className="pointer-events-auto flex justify-center">
+              <AdBanner ad={overlayAd} />
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -4,6 +4,19 @@ const isHlsUrl = (url: string) => /\.m3u8(\?|$)/i.test(url);
 
 const isUsableMediaUrl = (url?: string) => Boolean(url && url.trim() && url !== "about:blank" && url.startsWith("http"));
 
+const isImagePosterUrl = (url?: string) => {
+  if (!isUsableMediaUrl(url)) return false;
+  return /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(url.trim());
+};
+
+/** Image thumbnail only — safe for the watch-page player (no video URL fallback). */
+export const getVideoPosterImageUrl = (video: Video) => {
+  if (isImagePosterUrl(video.thumbnail)) {
+    return video.thumbnail.trim();
+  }
+  return "";
+};
+
 /** Thumbnail URL, or a progressive MP4 frame source when thumbnail was not uploaded. */
 export const getVideoPosterUrl = (video: Video) => {
   if (isUsableMediaUrl(video.thumbnail)) {

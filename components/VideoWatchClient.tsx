@@ -4,14 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { FiThumbsDown, FiThumbsUp } from "react-icons/fi";
 import VideoPlayerWithAds from "./VideoPlayerWithAds";
-import VideoCard from "./VideoCard";
+import RelatedVideoItem from "./RelatedVideoItem";
 import { addVideoCommentApi, getRecommendedVideosApi, reactToVideoApi, trackVideoViewApi } from "../lib/api";
 import { Video, VideoComment } from "../lib/types";
-import { getVideoPosterUrl } from "../lib/videoPoster";
+import { getVideoPosterImageUrl } from "../lib/videoPoster";
 import { getViewerUser } from "../lib/auth";
 import { emitAnalyticsEvent } from "../lib/analytics";
 import AdSlot, { AdInFeed } from "./AdSlot";
-import { useMobileGrid } from "./MobileGridProvider";
 
 type VideoWatchClientProps = {
   initialVideo: Video;
@@ -28,7 +27,6 @@ const getUserIdentifier = () => {
 };
 
 export default function VideoWatchClient({ initialVideo, initialComments }: VideoWatchClientProps) {
-  const { gridClassName } = useMobileGrid();
   const [video, setVideo] = useState(initialVideo);
   const [recommendedVideos, setRecommendedVideos] = useState<Video[]>(initialVideo.recommendedVideos || []);
   const [comments, setComments] = useState(initialComments);
@@ -67,7 +65,7 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
   }, [video._id, video.recommendedVideos]);
 
   const tagsText = useMemo(() => (video.tags || []).map((tag) => `#${tag.displayName}`).join(" "), [video.tags]);
-  const posterUrl = useMemo(() => getVideoPosterUrl(video), [video]);
+  const posterUrl = useMemo(() => getVideoPosterImageUrl(video), [video]);
 
   const handlePlayedSeconds = useCallback(async (seconds: number) => {
     const rounded = Math.round(seconds);
@@ -92,7 +90,7 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
       setVideo((prev) => ({ ...prev, viewsCount: result.viewsCount }));
       crossedViewThresholdRef.current = true;
     }
-  }, [video._id]);
+  }, [video._id, video.slug]);
 
   const handleReaction = async (reaction: "like" | "dislike") => {
     const userIdentifier = getUserIdentifier();
@@ -124,133 +122,144 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
   };
 
   return (
-    <main className="mx-auto w-full max-w-[1200px] px-3 py-6 sm:px-6">
-      <div className="yt-card rounded-none p-1 sm:p-2">
-        <VideoPlayerWithAds
-          src={video.videoUrl}
-          poster={posterUrl || undefined}
-          qualityVariants={(video.qualityVariants || []).map((item) => ({
-            src: item.url,
-            label: item.label,
-            height: item.height,
-          }))}
-          onPlayedSeconds={handlePlayedSeconds}
-        />
-      </div>
+    <main className="watch-page mx-auto w-full max-w-[1600px]">
+      <div className="watch-page__layout flex flex-col lg:flex-row lg:items-start">
+        <div className="watch-page__primary min-w-0 lg:w-3/4">
+          <VideoPlayerWithAds
+            src={video.videoUrl}
+            poster={posterUrl || undefined}
+            qualityVariants={(video.qualityVariants || []).map((item) => ({
+              src: item.url,
+              label: item.label,
+              height: item.height,
+            }))}
+            onPlayedSeconds={handlePlayedSeconds}
+          />
 
-      <AdSlot slot="watch_below_player" />
+          <div className="watch-page__details">
+            <AdSlot slot="watch_below_player" />
 
-      <div className="mt-4">
-        <h1 className="text-2xl font-bold">{video.title}</h1>
-        <p className="yt-muted mt-2 text-sm">{video.description || "No description available."}</p>
-        <div className="yt-muted mt-3 flex flex-wrap items-center gap-2 text-xs">
-          <span className="rounded bg-[var(--surface-muted)] px-2 py-1">{video.category?.name || "General"}</span>
-          <span className="rounded bg-[var(--surface-muted)] px-2 py-1">Views {video.viewsCount || 0}</span>
-          <span className="rounded bg-[var(--surface-muted)] px-2 py-1">Comments {video.commentsCount || 0}</span>
+            <h1 className="text-xl font-semibold leading-snug sm:text-2xl">{video.title}</h1>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+              <span className="yt-muted">{video.viewsCount || 0} views</span>
+              <span className="yt-muted">{video.category?.name || "General"}</span>
+              <span className="yt-muted">{video.commentsCount || 0} comments</span>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              <button
+                type="button"
+                className="watch-page__action flex items-center gap-2 text-sm"
+                onClick={() => {
+                  if (!viewer) return;
+                  void handleReaction("like");
+                }}
+              >
+                <FiThumbsUp /> {video.likesCount || 0}
+              </button>
+              <button
+                type="button"
+                className="watch-page__action flex items-center gap-2 text-sm"
+                onClick={() => {
+                  if (!viewer) return;
+                  void handleReaction("dislike");
+                }}
+              >
+                <FiThumbsDown /> {video.dislikesCount || 0}
+              </button>
+              {!viewer ? (
+                <p className="yt-muted text-sm">
+                  <Link href="/auth/login" className="yt-link">
+                    Login
+                  </Link>{" "}
+                  to react.
+                </p>
+              ) : null}
+            </div>
+
+            {video.description ? (
+              <p className="yt-muted mt-4 whitespace-pre-wrap text-sm leading-relaxed">{video.description}</p>
+            ) : null}
+
+            {(video.tags || []).length ? (
+              <p className="yt-muted mt-3 text-sm">
+                {(video.tags || []).map((tag) => `#${tag.displayName}`).join(" ")}
+              </p>
+            ) : tagsText ? (
+              <p className="yt-muted mt-3 text-sm">{tagsText}</p>
+            ) : null}
+
+            <AdSlot slot="watch_before_comments" />
+
+            <section className="watch-page__comments mt-6">
+              <h2 className="text-base font-semibold">{video.commentsCount || 0} Comments</h2>
+              {viewer ? (
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    value={authorName}
+                    onChange={(event) => setAuthorName(event.target.value)}
+                    placeholder="Your name"
+                    className="yt-input rounded px-3 py-2 text-sm sm:w-44"
+                  />
+                  <input
+                    value={commentText}
+                    onChange={(event) => setCommentText(event.target.value)}
+                    placeholder="Add a comment"
+                    className="yt-input w-full flex-1 rounded px-3 py-2 text-sm"
+                  />
+                  <button type="button" className="watch-page__action px-4 py-2 text-sm font-medium" onClick={handleComment}>
+                    Post
+                  </button>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm yt-muted">
+                  <Link href="/auth/login" className="yt-link">
+                    Login
+                  </Link>{" "}
+                  to comment.
+                </p>
+              )}
+              <div className="mt-4 divide-y divide-[var(--border)]">
+                {comments.map((comment) => (
+                  <div key={comment._id} className="py-3">
+                    <p className="text-sm font-semibold">{comment.authorName}</p>
+                    <p className="yt-muted mt-1 text-sm">{comment.message}</p>
+                  </div>
+                ))}
+                {!comments.length ? <p className="yt-muted py-3 text-sm">No comments yet.</p> : null}
+              </div>
+            </section>
+
+            <div className="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+              <Link href="/" className="yt-link font-medium">
+                Back to Home
+              </Link>
+              <Link
+                href={`/report-removal?video=${encodeURIComponent(video.slug || video._id)}`}
+                className="yt-link font-medium"
+              >
+                Request video removal
+              </Link>
+            </div>
+          </div>
         </div>
-        <div className="mt-4 rounded border border-[var(--border)] p-3">
-          <p className="mb-2 text-sm font-semibold">Tags</p>
-          {(video.tags || []).length ? (
-            <div className="flex flex-wrap gap-2">
-              {(video.tags || []).map((tag) => (
-                <span key={tag._id} className="rounded bg-[var(--surface-muted)] px-2 py-1 text-xs">
-                  #{tag.displayName}
-                </span>
+
+        {recommendedVideos.length ? (
+          <aside className="watch-page__sidebar min-w-0 lg:w-1/4">
+            <AdSlot slot="watch_before_recommendations" />
+            <h2 className="mb-1 text-sm font-semibold">Related videos</h2>
+            <div className="watch-page__related-list">
+              {recommendedVideos.map((item, index) => (
+                <div key={item._id}>
+                  <RelatedVideoItem video={item} />
+                  <AdInFeed index={index} />
+                </div>
               ))}
             </div>
-          ) : (
-            <p className="yt-muted text-sm">{tagsText || "No tags available."}</p>
-          )}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            className="yt-card flex items-center gap-2 px-4 py-2 text-sm"
-            onClick={() => {
-              if (!viewer) return;
-              void handleReaction("like");
-            }}
-          >
-            <FiThumbsUp /> ({video.likesCount || 0})
-          </button>
-          <button
-            className="yt-card flex items-center gap-2 px-4 py-2 text-sm"
-            onClick={() => {
-              if (!viewer) return;
-              void handleReaction("dislike");
-            }}
-          >
-            <FiThumbsDown /> ({video.dislikesCount || 0})
-          </button>
-          {!viewer ? (
-            <p className="yt-muted self-center text-sm">
-              <Link href="/auth/login" className="yt-link">Login</Link> to react.
-            </p>
-          ) : null}
-        </div>
-
-        <AdSlot slot="watch_before_comments" />
-
-        <div className="mt-6 yt-card p-4">
-          <h2 className="text-lg font-semibold">Comments</h2>
-          {viewer ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <input
-                value={authorName}
-                onChange={(event) => setAuthorName(event.target.value)}
-                placeholder="Your name"
-                className="yt-input rounded px-3 py-2 text-sm sm:w-52"
-              />
-              <input
-                value={commentText}
-                onChange={(event) => setCommentText(event.target.value)}
-                placeholder="Add a comment"
-                className="yt-input w-full rounded px-3 py-2 text-sm"
-              />
-              <button className="yt-card px-4 py-2 text-sm" onClick={handleComment}>
-                Post
-              </button>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm yt-muted">
-              <Link href="/auth/login" className="yt-link">Login</Link> to comment.
-            </p>
-          )}
-          <div className="mt-4 space-y-3">
-            {comments.map((comment) => (
-              <div key={comment._id} className="rounded border border-[var(--border)] p-3">
-                <p className="text-sm font-semibold">{comment.authorName}</p>
-                <p className="yt-muted mt-1 text-sm">{comment.message}</p>
-              </div>
-            ))}
-            {!comments.length ? <p className="yt-muted text-sm">No comments yet.</p> : null}
-          </div>
-        </div>
-
-        <Link href="/" className="yt-link mt-4 inline-block text-sm font-semibold">
-          Back to Home
-        </Link>
-        <Link
-          href={`/report-removal?video=${encodeURIComponent(video.slug || video._id)}`}
-          className="yt-link ml-4 mt-4 inline-block text-sm font-semibold"
-        >
-          Request video removal
-        </Link>
+          </aside>
+        ) : null}
       </div>
-
-      {recommendedVideos.length ? (
-        <section className="mt-8">
-          <AdSlot slot="watch_before_recommendations" />
-          <h2 className="mb-3 text-xl font-semibold">Recommended For You</h2>
-          <div className={gridClassName}>
-            {recommendedVideos.map((item, index) => (
-              <div key={item._id} className="contents">
-                <VideoCard video={item} />
-                <AdInFeed index={index} />
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </main>
   );
 }
