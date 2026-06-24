@@ -1,11 +1,11 @@
 import Link from "next/link";
 import VideoWatchClient from "../../../components/VideoWatchClient";
-import { getVideoByIdApi, getVideoCommentsApi } from "../../../lib/api";
 import { buildPageMetadata } from "../../../lib/pageMetadata";
 import { SEO, absoluteUrl } from "../../../lib/seo";
 import { getVideoPosterUrl } from "../../../lib/videoPoster";
+import { getVideoById, getVideoComments } from "../../../lib/serverData";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 type VideoWatchPageProps = {
   params: Promise<{ id: string }>;
@@ -13,7 +13,7 @@ type VideoWatchPageProps = {
 
 export async function generateMetadata({ params }: VideoWatchPageProps) {
   const { id } = await params;
-  const video = await getVideoByIdApi(id);
+  const video = await getVideoById(id);
 
   if (!video) {
     return buildPageMetadata({
@@ -39,8 +39,7 @@ export async function generateMetadata({ params }: VideoWatchPageProps) {
 
 export default async function VideoWatchPage({ params }: VideoWatchPageProps) {
   const { id } = await params;
-  const video = await getVideoByIdApi(id);
-  const comments = await getVideoCommentsApi(id);
+  const [video, comments] = await Promise.all([getVideoById(id), getVideoComments(id)]);
 
   if (!video) {
     return (

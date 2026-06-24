@@ -3,11 +3,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import UserHeader from "../components/UserHeader";
 import UserFooter from "../components/UserFooter";
-import UserAnalyticsTracker from "../components/UserAnalyticsTracker";
+import DeferredClientShell from "../components/DeferredClientShell";
 import { AuthProvider } from "../components/AuthProvider";
 import MobileGridProvider from "../components/MobileGridProvider";
 import ThemeProvider from "../components/ThemeProvider";
-import AgeGateModal from "../components/AgeGateModal";
 import SiteAdShell from "../components/SiteAdShell";
 import ThemeInit from "../components/ThemeInit";
 import { SEO, absoluteUrl } from "../lib/seo";
@@ -74,8 +73,7 @@ export default function RootLayout({
           <ThemeProvider>
             <MobileGridProvider>
               <div className="yt-shell">
-                <AgeGateModal />
-                <UserAnalyticsTracker />
+                <DeferredClientShell />
                 <UserHeader />
                 <SiteAdShell>{children}</SiteAdShell>
                 <UserFooter />

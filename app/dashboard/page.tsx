@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { getVideosApi } from "../../lib/api";
+import { getVideosByIdsApi } from "../../lib/api";
 import { clearViewerSession, getViewerUser, updateViewerUser, ViewerUser } from "../../lib/auth";
 import { Video } from "../../lib/types";
 
@@ -38,7 +38,7 @@ export default function DashboardPage() {
       const storedIds = storedRaw ? JSON.parse(storedRaw) : [];
       const validIds = Array.isArray(storedIds) ? storedIds.filter((item) => typeof item === "string") : [];
       setHistoryIds(validIds);
-      const videos = await getVideosApi();
+      const videos = await getVideosByIdsApi(validIds);
       setVideosMap(new Map(videos.map((video) => [video._id, video])));
       setLoadingHistory(false);
     };
@@ -136,7 +136,13 @@ export default function DashboardPage() {
 
       <section className="yt-card mt-6 rounded-xl p-4 sm:p-5">
         <h2 className="text-lg font-semibold">Watch History</h2>
-        {loadingHistory ? <p className="yt-muted mt-3 text-sm">Loading history...</p> : null}
+        {loadingHistory ? (
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="h-24 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface-muted)]" />
+            ))}
+          </div>
+        ) : null}
         {!loadingHistory && !historyVideos.length ? <p className="yt-muted mt-3 text-sm">No watched videos yet.</p> : null}
         {!loadingHistory && historyVideos.length ? (
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">

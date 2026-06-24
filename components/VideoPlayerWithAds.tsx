@@ -1,10 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { useAds } from "./AdProvider";
-import VideoJsPlayer from "./VideoJsPlayer";
 import PrerollAd from "./PrerollAd";
 import AdBanner from "./AdBanner";
+import { Skeleton } from "./skeletons/Skeleton";
+
+const VideoJsPlayer = dynamic(() => import("./VideoJsPlayer"), {
+  ssr: false,
+  loading: () => (
+    <div className="watch-player-frame flex items-center justify-center bg-black">
+      <Skeleton className="h-full w-full rounded-none" />
+    </div>
+  ),
+});
 
 type VideoSource = {
   src: string;

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import FeaturedCategoriesSection from "../../components/FeaturedCategoriesSection";
-import { getCategoriesApi, getVideosApi } from "../../lib/api";
 import { buildPageMetadata } from "../../lib/pageMetadata";
 import { SEO } from "../../lib/seo";
+import { getCategories, getPaginatedVideos } from "../../lib/serverData";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export const metadata = buildPageMetadata({
   title: "Categories",
@@ -13,7 +13,10 @@ export const metadata = buildPageMetadata({
 });
 
 export default async function CategoriesPage() {
-  const [categories, videos] = await Promise.all([getCategoriesApi(), getVideosApi()]);
+  const [categories, sampleVideos] = await Promise.all([
+    getCategories(),
+    getPaginatedVideos({ limit: 100, sort: "recent", page: 1 }),
+  ]);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[1400px] px-3 py-6 sm:px-6">
@@ -24,7 +27,7 @@ export default async function CategoriesPage() {
       {categories.length ? (
         <FeaturedCategoriesSection
           categories={categories}
-          videos={videos}
+          videos={sampleVideos.items}
           mode="all"
           showViewAllLink={false}
           priorityLeadingImage

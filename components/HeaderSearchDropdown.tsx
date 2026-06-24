@@ -220,8 +220,9 @@ export default function HeaderSearchDropdown({
                             alt=""
                             fill
                             sizes="80px"
-                            className="object-cover"
+                            className="pointer-events-none object-cover"
                             unoptimized
+                            draggable={false}
                           />
                         ) : null}
                       </div>

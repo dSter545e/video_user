@@ -4,43 +4,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getHlsModule, preloadHlsModule, type HlsConstructor } from "../lib/hlsPreviewLoader";
 import { claimVideoPreview, VIDEO_PREVIEW_CLAIM_EVENT, VideoPreviewClaimDetail } from "../lib/videoPreviewCoordinator";
+import { buildPreviewSegments } from "../lib/previewSegments";
 import { isHlsSource, isPlayablePreviewUrl, pickPreviewSource } from "../lib/videoPreviewSource";
 import { Video } from "../lib/types";
 
 const PREVIEW_IDLE_MS = 45000;
-
-const buildPreviewSegments = (duration: number) => {
-  if (!duration || Number.isNaN(duration) || duration <= 0) {
-    return [{ start: 0, end: 5 }];
-  }
-
-  const clipLength = Math.min(5, duration);
-  const safeStart = (time: number) => Math.max(0, Math.min(time, Math.max(0, duration - clipLength)));
-  const makeSegment = (start: number) => ({
-    start: safeStart(start),
-    end: safeStart(start) + clipLength,
-  });
-
-  if (duration <= clipLength) {
-    return [{ start: 0, end: duration }];
-  }
-
-  const rawStarts =
-    duration <= 30
-      ? [0, Math.floor(duration / 2), Math.max(0, duration - clipLength)]
-      : duration <= 180
-        ? [Math.floor(duration * 0.15), Math.floor(duration / 2), Math.max(0, duration - clipLength - 2)]
-        : [60, Math.floor(duration / 2), Math.max(0, duration - 180)];
-
-  const uniqueSegments: Array<{ start: number; end: number }> = [];
-  for (const start of rawStarts) {
-    const segment = makeSegment(start);
-    const duplicate = uniqueSegments.some((item) => Math.abs(item.start - segment.start) < 1);
-    if (!duplicate) uniqueSegments.push(segment);
-  }
-
-  return uniqueSegments;
-};
 
 const useHoverPreview = () => {
   const [enabled, setEnabled] = useState(false);
@@ -65,7 +33,7 @@ type UseVideoPreviewOptions = {
 export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: UseVideoPreviewOptions) => {
   const router = useRouter();
   const hoverPreview = useHoverPreview();
-  const mediaRef = useRef<HTMLDivElement | null>(null);
+  const mediaRef = useRef<HTMLAnchorElement | null>(null);
   const previewRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<InstanceType<HlsConstructor> | null>(null);
   const activeSourceRef = useRef("");
@@ -73,7 +41,6 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
   const segmentIndexRef = useRef(0);
   const loadingRef = useRef(false);
   const warmedRef = useRef(false);
-  const mobilePinnedRef = useRef(false);
   const idleCleanupRef = useRef<number | null>(null);
 
   const [previewActive, setPreviewActive] = useState(false);
@@ -82,9 +49,7 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
   const usesPreviewClip = Boolean(video.previewUrl && previewSource === video.previewUrl);
   const canPreview = isPlayablePreviewUrl(previewSource);
 
-  useEffect(() => {
-    void preloadHlsModule();
-  }, []);
+  const shouldPreloadHls = useCallback(() => isHlsSource(previewSource), [previewSource]);
 
   useEffect(() => {
     onPreviewActiveChange?.(previewActive);
@@ -135,7 +100,6 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
     segmentIndexRef.current = 0;
     loadingRef.current = false;
     warmedRef.current = false;
-    mobilePinnedRef.current = false;
   }, [clearIdleCleanup]);
 
   useEffect(() => () => cleanupPreview(), [cleanupPreview]);
@@ -264,6 +228,9 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
     const videoElement = previewRef.current;
 
     try {
+      if (shouldPreloadHls()) {
+        void preloadHlsModule();
+      }
       await attachPreviewSource(videoElement, previewSource);
       prepareSegments(videoElement);
       videoElement.currentTime = segmentBoundsRef.current[0]?.start || 0;
@@ -274,7 +241,7 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
     } finally {
       loadingRef.current = false;
     }
-  }, [canPreview, previewSource, usesPreviewClip, video.durationSeconds]);
+  }, [canPreview, previewSource, shouldPreloadHls, usesPreviewClip, video.durationSeconds]);
 
   const playPreview = useCallback(async (): Promise<boolean> => {
     if (!canPreview || !previewRef.current || loadingRef.current) return false;
@@ -285,21 +252,24 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
     const videoElement = previewRef.current;
 
     if (warmedRef.current && activeSourceRef.current === previewSource) {
-      setPreviewActive(true);
       unlockPlayback(videoElement);
       await jumpToSegment(videoElement, 0);
+      setPreviewActive(true);
       return true;
     }
 
     loadingRef.current = true;
-    setPreviewActive(true);
     unlockPlayback(videoElement);
 
     try {
+      if (shouldPreloadHls()) {
+        void preloadHlsModule();
+      }
       await attachPreviewSource(videoElement, previewSource);
       prepareSegments(videoElement);
       warmedRef.current = true;
       await jumpToSegment(videoElement, 0);
+      setPreviewActive(true);
       return true;
     } catch {
       cleanupPreview();
@@ -308,7 +278,7 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
     } finally {
       loadingRef.current = false;
     }
-  }, [canPreview, cleanupPreview, clearIdleCleanup, previewSource, usesPreviewClip, video._id, video.durationSeconds]);
+  }, [canPreview, cleanupPreview, clearIdleCleanup, previewSource, shouldPreloadHls, usesPreviewClip, video._id, video.durationSeconds]);
 
   const pausePreview = useCallback(() => {
     const videoElement = previewRef.current;
@@ -336,7 +306,7 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
   }, [video._id, stopPreview]);
 
   useEffect(() => {
-    if (!hoverPreview || !canPreview) return;
+    if (!canPreview) return;
     const node = mediaRef.current;
     if (!node || typeof IntersectionObserver === "undefined") return;
 
@@ -352,13 +322,7 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [canPreview, hoverPreview, warmPreview]);
-
-  const startMobilePreview = () => {
-    if (!canPreview || loadingRef.current) return;
-    mobilePinnedRef.current = true;
-    void playPreview();
-  };
+  }, [canPreview, warmPreview]);
 
   const handleMediaPointerEnter = () => {
     if (!hoverPreview || !canPreview) return;
@@ -370,25 +334,27 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
     pausePreview();
   };
 
-  const handleMediaClick = () => {
+  const handleCardInteraction = useCallback((): "preview" | "navigate" => {
     if (hoverPreview) {
       router.push(videoHref);
       stopPreview();
-      return;
-    }
-
-    if (!canPreview) {
-      router.push(videoHref);
-      return;
+      return "navigate";
     }
 
     if (previewActive) {
       router.push(videoHref);
-      return;
+      stopPreview();
+      return "navigate";
     }
 
-    startMobilePreview();
-  };
+    void playPreview();
+    return "preview";
+  }, [hoverPreview, previewActive, playPreview, router, stopPreview, videoHref]);
+
+  const handleCardContextMenu = useCallback(() => {
+    if (!canPreview || previewActive) return;
+    void playPreview();
+  }, [canPreview, previewActive, playPreview]);
 
   const handleTimeUpdate = async () => {
     const videoElement = previewRef.current;
@@ -423,8 +389,8 @@ export const useVideoPreview = ({ video, videoHref, onPreviewActiveChange }: Use
     hoverPreview,
     handleMediaPointerEnter,
     handleMediaPointerLeave,
-    handleMediaClick,
+    handleCardInteraction,
+    handleCardContextMenu,
     handleTimeUpdate,
-    startMobilePreview,
   };
 };

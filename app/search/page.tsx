@@ -1,7 +1,7 @@
 import Link from "next/link";
 import VideoGridWithAds from "../../components/VideoGridWithAds";
-import { getPaginatedVideosApi } from "../../lib/api";
 import { buildPageMetadata } from "../../lib/pageMetadata";
+import { getPaginatedVideos } from "../../lib/serverData";
 import { SEO } from "../../lib/seo";
 
 type SearchPageProps = {
@@ -30,7 +30,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const currentPage = Number.parseInt(page, 10) > 0 ? Number.parseInt(page, 10) : 1;
 
   const data = query
-    ? await getPaginatedVideosApi({
+    ? await getPaginatedVideos({
         q: query,
         sort: sort as "recent" | "most_viewed" | "top_rated" | "long_duration" | "short_duration",
         page: currentPage,

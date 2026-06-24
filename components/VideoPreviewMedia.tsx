@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { FiPlay } from "react-icons/fi";
 import { getVideoPosterUrl } from "../lib/videoPoster";
 import { Video } from "../lib/types";
-import { useVideoPreview } from "../hooks/useVideoPreview";
+import type { useVideoPreview } from "../hooks/useVideoPreview";
 
 const formatDuration = (seconds?: number, fallback?: string) => {
   if (!seconds || Number.isNaN(seconds)) return fallback || "00:00";
@@ -18,22 +19,24 @@ const formatDuration = (seconds?: number, fallback?: string) => {
   return `${mins}:${String(secs).padStart(2, "0")}`;
 };
 
+type VideoPreviewControls = ReturnType<typeof useVideoPreview>;
+
 type VideoPreviewMediaProps = {
   video: Video;
+  preview: VideoPreviewControls;
   className?: string;
   imageSizes?: string;
   showPlayHint?: boolean;
   showDuration?: boolean;
-  onPreviewActiveChange?: (active: boolean) => void;
 };
 
 export default function VideoPreviewMedia({
   video,
+  preview,
   className = "video-card__media",
   imageSizes = "(max-width: 767px) 46vw, 25vw",
   showPlayHint = true,
   showDuration = true,
-  onPreviewActiveChange,
 }: VideoPreviewMediaProps) {
   const videoHref = `/videos/${video.slug || video._id}`;
   const posterUrl = getVideoPosterUrl(video);
@@ -45,42 +48,49 @@ export default function VideoPreviewMedia({
     previewRef,
     previewActive,
     canPreview,
-    hoverPreview,
     handleMediaPointerEnter,
     handleMediaPointerLeave,
-    handleMediaClick,
+    handleCardInteraction,
     handleTimeUpdate,
-    startMobilePreview,
-  } = useVideoPreview({ video, videoHref, onPreviewActiveChange });
+  } = preview;
 
   return (
-    <div
+    <Link
       ref={mediaRef}
+      href={videoHref}
       className={className}
       onPointerEnter={handleMediaPointerEnter}
       onPointerLeave={handleMediaPointerLeave}
-      onTouchStart={() => {
-        if (hoverPreview) return;
-        startMobilePreview();
-      }}
       onClick={(event) => {
-        event.preventDefault();
-        handleMediaClick();
-      }}
-      role="button"
-      tabIndex={0}
-      aria-label={previewActive ? `Previewing ${video.title}. Tap again to watch.` : `Preview ${video.title}`}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          handleMediaClick();
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+          return;
         }
+        event.preventDefault();
+        handleCardInteraction();
       }}
+      aria-label={previewActive ? `Previewing ${video.title}` : `Watch ${video.title}`}
     >
       {useVideoFramePoster ? (
-        <video src={posterUrl} muted playsInline preload="metadata" className="video-card__thumb" aria-hidden />
+        <video
+          src={posterUrl}
+          muted
+          playsInline
+          preload="metadata"
+          className="video-card__thumb"
+          aria-hidden
+          tabIndex={-1}
+        />
       ) : posterUrl ? (
-        <Image src={posterUrl} alt="" fill unoptimized className="video-card__thumb" sizes={imageSizes} />
+        <Image
+          src={posterUrl}
+          alt=""
+          fill
+          unoptimized
+          draggable={false}
+          loading="lazy"
+          className="video-card__thumb"
+          sizes={imageSizes}
+        />
       ) : (
         <div className="video-card__thumb flex items-center justify-center yt-muted" aria-hidden>
           No preview
@@ -94,6 +104,7 @@ export default function VideoPreviewMedia({
           playsInline
           disablePictureInPicture
           preload="auto"
+          tabIndex={-1}
           onTimeUpdate={handleTimeUpdate}
           className="video-card__preview"
         />
@@ -114,6 +125,6 @@ export default function VideoPreviewMedia({
       {showDuration ? (
         <span className="video-card__duration">{formatDuration(video.durationSeconds, video.duration)}</span>
       ) : null}
-    </div>
+    </Link>
   );
 }

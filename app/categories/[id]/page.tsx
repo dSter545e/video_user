@@ -1,12 +1,12 @@
 import Link from "next/link";
 import VideoGridWithAds from "../../../components/VideoGridWithAds";
-import { getCategoriesApi, getVideosByCategoryApi } from "../../../lib/api";
 import { buildPageMetadata } from "../../../lib/pageMetadata";
 import { SEO } from "../../../lib/seo";
+import { getCategories, getPaginatedVideos } from "../../../lib/serverData";
 
 type CategoryVideosPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ sort?: string; page?: string }>;
 };
 
 const SORT_OPTIONS = [
@@ -17,11 +17,11 @@ const SORT_OPTIONS = [
   { id: "short_duration", label: "Short Duration" },
 ] as const;
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: CategoryVideosPageProps) {
   const { id } = await params;
-  const categories = await getCategoriesApi();
+  const categories = await getCategories();
   const category = categories.find((item) => item._id === id || item.slug === id);
   const title = category?.name ? `${category.name} Videos` : "Category Videos";
   const categoryPath = `/categories/${category?.slug || id}`;
@@ -36,28 +36,26 @@ export async function generateMetadata({ params }: CategoryVideosPageProps) {
 
 export default async function CategoryVideosPage({ params, searchParams }: CategoryVideosPageProps) {
   const { id } = await params;
-  const { sort = "recent" } = await searchParams;
-  const [categories, videos] = await Promise.all([getCategoriesApi(), getVideosByCategoryApi(id)]);
+  const { sort = "recent", page = "1" } = await searchParams;
+  const currentPage = Number.parseInt(page, 10) > 0 ? Number.parseInt(page, 10) : 1;
+  const [categories, data] = await Promise.all([
+    getCategories(),
+    getPaginatedVideos({
+      categoryId: id,
+      sort: sort as "recent" | "most_viewed" | "top_rated" | "long_duration" | "short_duration",
+      page: currentPage,
+      limit: 30,
+    }),
+  ]);
   const category = categories.find((item) => item._id === id || item.slug === id);
   const categoryPath = `/categories/${category?.slug || id}`;
-  const sortedVideos = [...videos].sort((a, b) => {
-    switch (sort) {
-      case "most_viewed":
-        return (b.viewsCount || 0) - (a.viewsCount || 0);
-      case "top_rated":
-        return (b.likesCount || 0) - (a.likesCount || 0);
-      case "long_duration":
-        return (b.durationSeconds || 0) - (a.durationSeconds || 0);
-      case "short_duration":
-        return (a.durationSeconds || 0) - (b.durationSeconds || 0);
-      case "recent":
-      default: {
-        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bTime - aTime;
-      }
-    }
-  });
+  const sortedVideos = data.items;
+  const pagination = data.pagination;
+
+  const getPageHref = (targetPage: number) => `${categoryPath}?sort=${encodeURIComponent(sort)}&page=${targetPage}`;
+  const pageWindowStart = Math.max(1, pagination.page - 2);
+  const pageWindowEnd = Math.min(pagination.totalPages, pagination.page + 2);
+  const pageNumbers = Array.from({ length: pageWindowEnd - pageWindowStart + 1 }, (_, index) => pageWindowStart + index);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[1400px] px-3 py-6 sm:px-6">
@@ -84,7 +82,43 @@ export default async function CategoryVideosPage({ params, searchParams }: Categ
       {sortedVideos.length === 0 ? (
         <p className="yt-card p-8 text-center yt-muted">No videos in this category.</p>
       ) : (
-        <VideoGridWithAds videos={sortedVideos} />
+        <>
+          <VideoGridWithAds videos={sortedVideos} />
+          {pagination.totalPages > 1 ? (
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+              <p className="yt-muted text-sm">
+                Page {pagination.page} of {pagination.totalPages} | Total Videos: {pagination.totalItems}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {pagination.hasPrevPage ? (
+                  <Link href={getPageHref(pagination.page - 1)} className="yt-card rounded px-3 py-2 text-sm font-medium">
+                    Previous
+                  </Link>
+                ) : (
+                  <span className="yt-muted rounded px-3 py-2 text-sm">Previous</span>
+                )}
+                {pageNumbers.map((pageNumber) => (
+                  <Link
+                    key={pageNumber}
+                    href={getPageHref(pageNumber)}
+                    className={`rounded px-3 py-2 text-sm font-medium ${
+                      pageNumber === pagination.page ? "bg-[var(--brand)] text-white" : "yt-card"
+                    }`}
+                  >
+                    {pageNumber}
+                  </Link>
+                ))}
+                {pagination.hasNextPage ? (
+                  <Link href={getPageHref(pagination.page + 1)} className="yt-card rounded px-3 py-2 text-sm font-medium">
+                    Next
+                  </Link>
+                ) : (
+                  <span className="yt-muted rounded px-3 py-2 text-sm">Next</span>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </>
       )}
     </main>
   );

@@ -182,6 +182,15 @@ const attachQualityControl = (
 const isImagePosterUrl = (url?: string) =>
   Boolean(url && /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(url));
 
+const attachFullscreenControl = (player: VideoJsPlayerInstance) => {
+  const controlBar = player.getChild("controlBar");
+  if (!controlBar) return;
+
+  if (!controlBar.getChild("FullscreenToggle")) {
+    controlBar.addChild("FullscreenToggle", {}, controlBar.children().length);
+  }
+};
+
 const fixWatchPlayerLayout = (player: VideoJsPlayerInstance) => {
   if (!player || (typeof player.isDisposed === "function" && player.isDisposed())) return;
 
@@ -311,10 +320,17 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
         preload: "auto",
         poster: safePoster,
         sources,
+        playsinline: true,
+        fullscreen: {
+          options: {
+            navigationUI: "hide",
+          },
+        },
       });
       bindWatchPlayerLayout(playerRef.current, true);
       attachTimeControls(playerRef.current);
       attachSkipControls(playerRef.current);
+      attachFullscreenControl(playerRef.current);
       attachQualityControl(playerRef.current, qualityOptions, selectedSource, setSelectedSource);
       playerRef.current.on("timeupdate", () => {
         const current = playerRef.current;
@@ -347,6 +363,7 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
       return;
     }
     attachTimeControls(player);
+    attachFullscreenControl(player);
     attachQualityControl(player, qualityOptions, selectedSource, setSelectedSource);
   }, [src, safePoster, qualityVariants, selectedSource, qualityOptions, onPlayedSeconds]);
 

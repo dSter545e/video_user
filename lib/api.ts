@@ -1,10 +1,11 @@
 import { Category, CategoryVideo, PaginatedVideosResponse, UserAuthResponse, Video, VideoComment } from "./types";
+import { dynamicFetchInit, publicFetchInit } from "./fetchConfig";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export async function getVideosApi(): Promise<Video[]> {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/videos`, { cache: "no-store" });
+    const response = await fetch(`${BACKEND_URL}/api/videos`, publicFetchInit());
     if (!response.ok) return [];
     return response.json();
   } catch (_error) {
@@ -17,6 +18,7 @@ export async function getPaginatedVideosApi(params: {
   limit?: number;
   sort?: "recent" | "most_viewed" | "top_rated" | "long_duration" | "short_duration";
   q?: string;
+  categoryId?: string;
 }): Promise<PaginatedVideosResponse> {
   const page = Math.max(1, params.page || 1);
   const limit = Math.max(1, params.limit || 20);
@@ -30,8 +32,11 @@ export async function getPaginatedVideosApi(params: {
   if (params.q?.trim()) {
     query.set("q", params.q.trim());
   }
+  if (params.categoryId?.trim()) {
+    query.set("categoryId", params.categoryId.trim());
+  }
   try {
-    const response = await fetch(`${BACKEND_URL}/api/videos?${query.toString()}`, { cache: "no-store" });
+    const response = await fetch(`${BACKEND_URL}/api/videos?${query.toString()}`, publicFetchInit());
     if (!response.ok) {
       return {
         items: [],
@@ -57,9 +62,7 @@ export async function getRecommendedVideosApi(params: {
   if (params.currentVideoId) query.set("currentVideoId", params.currentVideoId);
   if (params.limit) query.set("limit", String(params.limit));
   try {
-    const response = await fetch(`${BACKEND_URL}/api/videos/recommended?${query.toString()}`, {
-      cache: "no-store",
-    });
+    const response = await fetch(`${BACKEND_URL}/api/videos/recommended?${query.toString()}`, publicFetchInit(30));
     if (!response.ok) return [];
     return response.json();
   } catch (_error) {
@@ -69,7 +72,7 @@ export async function getRecommendedVideosApi(params: {
 
 export async function getCategoriesApi(): Promise<Category[]> {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/categories`, { cache: "no-store" });
+    const response = await fetch(`${BACKEND_URL}/api/categories`, publicFetchInit());
     if (!response.ok) return [];
     return response.json();
   } catch (_error) {
@@ -79,7 +82,7 @@ export async function getCategoriesApi(): Promise<Category[]> {
 
 export async function getVideosByCategoryApi(categoryId: string): Promise<CategoryVideo[]> {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/videos?categoryId=${categoryId}`, { cache: "no-store" });
+    const response = await fetch(`${BACKEND_URL}/api/videos?categoryId=${categoryId}`, publicFetchInit());
     if (!response.ok) return [];
     return response.json();
   } catch (_error) {
@@ -90,7 +93,7 @@ export async function getVideosByCategoryApi(categoryId: string): Promise<Catego
 export async function getVideoByIdApi(id: string, userIdentifier?: string): Promise<Video | null> {
   try {
     const suffix = userIdentifier ? `?userIdentifier=${encodeURIComponent(userIdentifier)}` : "";
-    const response = await fetch(`${BACKEND_URL}/api/videos/${id}${suffix}`, { cache: "no-store" });
+    const response = await fetch(`${BACKEND_URL}/api/videos/${id}${suffix}`, publicFetchInit(30));
     if (!response.ok) return null;
     return response.json();
   } catch (_error) {
@@ -118,9 +121,28 @@ export async function reactToVideoApi(id: string, userIdentifier: string, reacti
   return response.json();
 }
 
+export async function getVideosByIdsApi(ids: string[]): Promise<Video[]> {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean))).slice(0, 24);
+  if (!uniqueIds.length) return [];
+
+  const results = await Promise.all(
+    uniqueIds.map(async (id) => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/videos/${id}`, dynamicFetchInit());
+        if (!response.ok) return null;
+        return response.json() as Promise<Video>;
+      } catch (_error) {
+        return null;
+      }
+    })
+  );
+
+  return results.filter(Boolean) as Video[];
+}
+
 export async function getVideoCommentsApi(id: string): Promise<VideoComment[]> {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/videos/${id}/comments`, { cache: "no-store" });
+    const response = await fetch(`${BACKEND_URL}/api/videos/${id}/comments`, publicFetchInit(15));
     if (!response.ok) return [];
     return response.json();
   } catch (_error) {

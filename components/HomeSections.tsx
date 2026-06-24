@@ -5,6 +5,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import VideoCard from "./VideoCard";
 import FeaturedCategoriesSection from "./FeaturedCategoriesSection";
 import AdSlot, { AdInFeed } from "./AdSlot";
+import VideoGridSkeleton from "./skeletons/VideoGridSkeleton";
 import { Category, Video } from "../lib/types";
 import { getRecommendedVideosApi } from "../lib/api";
 import { getOrCreateVisitorId } from "../lib/analytics";
@@ -12,36 +13,42 @@ import { VIEWER_AUTH_CHANGED_EVENT, getViewerUser } from "../lib/auth";
 import { useMobileGrid } from "./MobileGridProvider";
 
 type HomeSectionsProps = {
-  videos: Video[];
+  latestVideos: Video[];
+  mostViewedVideos: Video[];
   categories: Category[];
+  categoryCountVideos?: Video[];
 };
-
-const sortByDateDesc = (items: Video[]) =>
-  [...items].sort((a, b) => {
-    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return bTime - aTime;
-  });
-
-const sortByViewsDesc = (items: Video[]) => [...items].sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0));
 
 const HOME_SECTION_VIDEO_LIMIT = 20;
 
-export default function HomeSections({ videos, categories }: HomeSectionsProps) {
+export default function HomeSections({
+  latestVideos,
+  mostViewedVideos,
+  categories,
+  categoryCountVideos = [],
+}: HomeSectionsProps) {
   const { gridClassName } = useMobileGrid();
   const [recentViewed, setRecentViewed] = useState<Video[]>([]);
   const [personalizedRecommended, setPersonalizedRecommended] = useState<Video[]>([]);
+  const [loadingRecommended, setLoadingRecommended] = useState(false);
+  const [hasFetchedRecommendations, setHasFetchedRecommendations] = useState(false);
   const [viewerLoggedIn, setViewerLoggedIn] = useState(false);
 
-  const latestVideos = useMemo(() => sortByDateDesc(videos).slice(0, HOME_SECTION_VIDEO_LIMIT), [videos]);
-  const mostViewedVideos = useMemo(() => sortByViewsDesc(videos).slice(0, HOME_SECTION_VIDEO_LIMIT), [videos]);
-  const recommendedVideos = useMemo(
-    () =>
-      personalizedRecommended.length
-        ? personalizedRecommended.slice(0, HOME_SECTION_VIDEO_LIMIT)
-        : videos.slice(0, HOME_SECTION_VIDEO_LIMIT),
-    [personalizedRecommended, videos]
-  );
+  const recommendedVideos = useMemo(() => {
+    if (!hasFetchedRecommendations) return [];
+    if (personalizedRecommended.length) {
+      return personalizedRecommended.slice(0, HOME_SECTION_VIDEO_LIMIT);
+    }
+    return latestVideos.slice(0, HOME_SECTION_VIDEO_LIMIT);
+  }, [hasFetchedRecommendations, personalizedRecommended, latestVideos]);
+
+  const lookupVideos = useMemo(() => {
+    const map = new Map<string, Video>();
+    for (const video of [...latestVideos, ...mostViewedVideos, ...recommendedVideos, ...categoryCountVideos]) {
+      map.set(video._id, video);
+    }
+    return map;
+  }, [latestVideos, mostViewedVideos, recommendedVideos, categoryCountVideos]);
 
   useEffect(() => {
     const syncViewer = () => setViewerLoggedIn(Boolean(getViewerUser()));
@@ -63,45 +70,49 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
       setRecentViewed([]);
       return;
     }
-    const map = new Map(videos.map((video) => [video._id, video]));
+    const map = lookupVideos;
     const matched = validIds.map((id) => map.get(id)).filter(Boolean) as Video[];
     setRecentViewed(matched.slice(0, 6));
-  }, [videos]);
+  }, [lookupVideos]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadRecommendations = async () => {
-      const visitorId = getOrCreateVisitorId();
-      const data = await getRecommendedVideosApi({ visitorId, limit: HOME_SECTION_VIDEO_LIMIT });
-      if (data.length) setPersonalizedRecommended(data);
+      setLoadingRecommended(true);
+      try {
+        const visitorId = getOrCreateVisitorId();
+        const data = await getRecommendedVideosApi({ visitorId, limit: HOME_SECTION_VIDEO_LIMIT });
+        if (!cancelled && data.length) setPersonalizedRecommended(data);
+      } finally {
+        if (!cancelled) {
+          setHasFetchedRecommendations(true);
+          setLoadingRecommended(false);
+        }
+      }
     };
-    void loadRecommendations();
+
+    const scheduleLoad = () => {
+      if (!cancelled) void loadRecommendations();
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      const idleId = window.requestIdleCallback(scheduleLoad, { timeout: 2000 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(idleId);
+      };
+    }
+
+    const timeoutId = window.setTimeout(scheduleLoad, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   return (
     <main className="mx-auto w-full max-w-[1400px] px-3 py-5 sm:px-6">
-      <section className="mb-8">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-xl font-bold sm:text-2xl">Recommended Videos</h2>
-          <Link href="/videos?sort=recent" className="yt-link text-sm font-semibold">
-            View more
-          </Link>
-        </div>
-        {recommendedVideos.length ? (
-          <div className={gridClassName}>
-            {recommendedVideos.map((video, index) => (
-              <Fragment key={video._id}>
-                <VideoCard video={video} />
-                <AdInFeed index={index} />
-              </Fragment>
-            ))}
-          </div>
-        ) : (
-          <p className="yt-card p-8 text-center yt-muted">No videos available. Add videos from admin panel.</p>
-        )}
-      </section>
-
-      <AdSlot slot="home_between_sections" className="home-between-sections-ad" />
-
       <section className="mb-8">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl font-bold sm:text-2xl">Latest Videos</h2>
@@ -114,12 +125,37 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
             {latestVideos.map((video, index) => (
               <Fragment key={video._id}>
                 <VideoCard video={video} />
-                <AdInFeed index={index + recommendedVideos.length} />
+                <AdInFeed index={index} />
               </Fragment>
             ))}
           </div>
         ) : (
           <p className="yt-card p-8 text-center yt-muted">No latest videos yet.</p>
+        )}
+      </section>
+
+      <AdSlot slot="home_between_sections" className="home-between-sections-ad" />
+
+      <section className="mb-8">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-xl font-bold sm:text-2xl">Recommended Videos</h2>
+          <Link href="/videos?sort=recent" className="yt-link text-sm font-semibold">
+            View more
+          </Link>
+        </div>
+        {loadingRecommended || !hasFetchedRecommendations ? (
+          <VideoGridSkeleton count={8} />
+        ) : recommendedVideos.length ? (
+          <div className={gridClassName}>
+            {recommendedVideos.map((video, index) => (
+              <Fragment key={video._id}>
+                <VideoCard video={video} />
+                <AdInFeed index={index + latestVideos.length} />
+              </Fragment>
+            ))}
+          </div>
+        ) : (
+          <p className="yt-card p-8 text-center yt-muted">No videos available. Add videos from admin panel.</p>
         )}
       </section>
 
@@ -137,7 +173,7 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
             {mostViewedVideos.map((video, index) => (
               <Fragment key={video._id}>
                 <VideoCard video={video} />
-                <AdInFeed index={index + recommendedVideos.length + latestVideos.length} />
+                <AdInFeed index={index + latestVideos.length + recommendedVideos.length} />
               </Fragment>
             ))}
           </div>
@@ -146,7 +182,7 @@ export default function HomeSections({ videos, categories }: HomeSectionsProps) 
         )}
       </section>
 
-      <FeaturedCategoriesSection categories={categories} videos={videos} />
+      <FeaturedCategoriesSection categories={categories} videos={categoryCountVideos} />
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] p-4 sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-3">

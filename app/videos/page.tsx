@@ -1,7 +1,7 @@
 import Link from "next/link";
 import VideoGridWithAds from "../../components/VideoGridWithAds";
-import { getPaginatedVideosApi } from "../../lib/api";
 import { buildPageMetadata } from "../../lib/pageMetadata";
+import { getPaginatedVideos } from "../../lib/serverData";
 
 type VideosPageProps = {
   searchParams: Promise<{ sort?: string; page?: string }>;
@@ -15,7 +15,7 @@ const SORT_OPTIONS = [
   { id: "short_duration", label: "Short Duration" },
 ];
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export const metadata = buildPageMetadata({
   title: "All Videos",
@@ -26,7 +26,7 @@ export const metadata = buildPageMetadata({
 export default async function VideosPage({ searchParams }: VideosPageProps) {
   const { sort = "recent", page = "1" } = await searchParams;
   const currentPage = Number.parseInt(page, 10) > 0 ? Number.parseInt(page, 10) : 1;
-  const data = await getPaginatedVideosApi({
+  const data = await getPaginatedVideos({
     sort: sort as "recent" | "most_viewed" | "top_rated" | "long_duration" | "short_duration",
     page: currentPage,
     limit: 30,
