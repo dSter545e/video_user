@@ -1,5 +1,6 @@
 import { Category, CategoryVideo, PaginatedVideosResponse, UserAuthResponse, Video, VideoComment } from "./types";
 import { dynamicFetchInit, publicFetchInit } from "./fetchConfig";
+import { normalizeVideoList, normalizeVideoMedia } from "./mediaUrl";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -7,7 +8,7 @@ export async function getVideosApi(): Promise<Video[]> {
   try {
     const response = await fetch(`${BACKEND_URL}/api/videos`, publicFetchInit());
     if (!response.ok) return [];
-    return response.json();
+    return normalizeVideoList(await response.json());
   } catch (_error) {
     return [];
   }
@@ -43,7 +44,11 @@ export async function getPaginatedVideosApi(params: {
         pagination: { page, limit, totalItems: 0, totalPages: 1, hasNextPage: false, hasPrevPage: false },
       };
     }
-    return response.json();
+    const data = await response.json();
+    return {
+      ...data,
+      items: normalizeVideoList(data.items || []),
+    };
   } catch (_error) {
     return {
       items: [],
@@ -64,7 +69,7 @@ export async function getRecommendedVideosApi(params: {
   try {
     const response = await fetch(`${BACKEND_URL}/api/videos/recommended?${query.toString()}`, publicFetchInit(30));
     if (!response.ok) return [];
-    return response.json();
+    return normalizeVideoList(await response.json());
   } catch (_error) {
     return [];
   }
@@ -84,7 +89,7 @@ export async function getVideosByCategoryApi(categoryId: string): Promise<Catego
   try {
     const response = await fetch(`${BACKEND_URL}/api/videos?categoryId=${categoryId}`, publicFetchInit());
     if (!response.ok) return [];
-    return response.json();
+    return normalizeVideoList(await response.json());
   } catch (_error) {
     return [];
   }
@@ -95,7 +100,7 @@ export async function getVideoByIdApi(id: string, userIdentifier?: string): Prom
     const suffix = userIdentifier ? `?userIdentifier=${encodeURIComponent(userIdentifier)}` : "";
     const response = await fetch(`${BACKEND_URL}/api/videos/${id}${suffix}`, publicFetchInit(30));
     if (!response.ok) return null;
-    return response.json();
+    return normalizeVideoMedia(await response.json());
   } catch (_error) {
     return null;
   }
@@ -130,7 +135,7 @@ export async function getVideosByIdsApi(ids: string[]): Promise<Video[]> {
       try {
         const response = await fetch(`${BACKEND_URL}/api/videos/${id}`, dynamicFetchInit());
         if (!response.ok) return null;
-        return response.json() as Promise<Video>;
+        return normalizeVideoMedia(await response.json());
       } catch (_error) {
         return null;
       }
