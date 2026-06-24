@@ -1,5 +1,5 @@
 import { Video } from "./types";
-import { getMediaApiUrl, getPublicSiteUrl } from "./apiConfig";
+import { getMediaApiUrl, getPublicApiUrl, getPublicSiteUrl } from "./apiConfig";
 
 const parseUrl = (raw?: string | null): URL | null => {
   if (!raw?.trim()) return null;
@@ -24,12 +24,6 @@ const isLocalHost = (hostname: string) =>
 const stripWww = (hostname: string) => hostname.replace(/^www\./i, "");
 
 const isMediaPath = (pathname: string) => pathname.includes("/api/media/");
-
-const deriveApiOriginFromHostname = (hostname: string, protocol: string) => {
-  const base = stripWww(hostname);
-  if (isLocalHost(base) || /^api\./i.test(base)) return null;
-  return parseUrl(`${protocol}//api.${base}`);
-};
 
 const shouldRewriteMediaUrl = (resolved: URL, mediaOrigin: URL | null): mediaOrigin is URL => {
   if (!mediaOrigin || !isMediaPath(resolved.pathname)) return false;
@@ -57,12 +51,12 @@ export const normalizeMediaUrl = (url?: string): string => {
   const input = (url || "").trim();
   if (!input || input === "about:blank") return input;
 
-  let mediaOrigin = getMediaApiOrigin();
+  const mediaOrigin = getMediaApiOrigin() ?? parseUrl(getPublicApiUrl());
   let resolved: URL;
 
   try {
-    if (input.startsWith("/") && mediaOrigin) {
-      resolved = new URL(input, mediaOrigin);
+    if (input.startsWith("/")) {
+      resolved = new URL(input, mediaOrigin ?? "http://localhost:5000");
     } else {
       resolved = new URL(input);
     }
@@ -70,19 +64,8 @@ export const normalizeMediaUrl = (url?: string): string => {
     return input;
   }
 
-  if (isMediaPath(resolved.pathname)) {
-    if (!mediaOrigin && typeof window !== "undefined") {
-      mediaOrigin = deriveApiOriginFromHostname(window.location.hostname, window.location.protocol);
-    }
-
-    if (mediaOrigin && shouldRewriteMediaUrl(resolved, mediaOrigin)) {
-      resolved = applyMediaOrigin(resolved, mediaOrigin);
-    } else if (!mediaOrigin && typeof window !== "undefined") {
-      const derived = deriveApiOriginFromHostname(window.location.hostname, window.location.protocol);
-      if (derived && resolved.host === window.location.host) {
-        resolved = applyMediaOrigin(resolved, derived);
-      }
-    }
+  if (isMediaPath(resolved.pathname) && mediaOrigin && shouldRewriteMediaUrl(resolved, mediaOrigin)) {
+    resolved = applyMediaOrigin(resolved, mediaOrigin);
   }
 
   if (resolved.protocol === "http:" && !isLocalHost(resolved.hostname)) {
