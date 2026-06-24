@@ -71,6 +71,18 @@ export default function MediaDebugPanel({ video, rawVideo, playbackSrc }: MediaD
         <div className="mt-3 space-y-3">
           <dl className="grid gap-1 sm:grid-cols-2">
             <div>
+              <dt className="font-semibold">Media API URL (derived)</dt>
+              <dd className="break-all font-mono">{snapshot.configuredMediaApiUrl}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">meta media-api-base-url</dt>
+              <dd className="break-all font-mono">{snapshot.metaMediaApiUrl || "(missing)"}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Resolved media API origin</dt>
+              <dd className="break-all font-mono">{snapshot.resolvedMediaApiOrigin || "(none)"}</dd>
+            </div>
+            <div>
               <dt className="font-semibold">NEXT_PUBLIC_API_URL</dt>
               <dd className="break-all font-mono">{snapshot.configuredApiUrl}</dd>
             </div>

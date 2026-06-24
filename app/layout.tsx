@@ -9,8 +9,8 @@ import MobileGridProvider from "../components/MobileGridProvider";
 import ThemeProvider from "../components/ThemeProvider";
 import SiteAdShell from "../components/SiteAdShell";
 import ThemeInit from "../components/ThemeInit";
+import { getMediaApiUrl, getPublicApiUrl, logApiConfigWarnings } from "../lib/apiConfig";
 import { SEO, absoluteUrl } from "../lib/seo";
-import { getPublicApiUrl, logApiConfigWarnings } from "../lib/apiConfig";
 import { getSiteVerificationMetadata } from "../lib/siteVerification";
 
 const geistSans = Geist({
@@ -63,6 +63,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const apiBaseUrl = getPublicApiUrl();
+  const mediaApiBaseUrl = getMediaApiUrl();
 
   logApiConfigWarnings();
 
@@ -74,6 +75,7 @@ export default function RootLayout({
     >
       <head>
         <meta name="api-base-url" content={apiBaseUrl} />
+        <meta name="media-api-base-url" content={mediaApiBaseUrl} />
       </head>
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <ThemeInit />

@@ -1,5 +1,5 @@
 import { Video } from "./types";
-import { getPublicApiUrl, getPublicSiteUrl } from "./apiConfig";
+import { getMediaApiUrl, getPublicApiUrl } from "./apiConfig";
 
 const parseOrigin = (raw?: string | null): URL | null => {
   if (!raw?.trim()) return null;
@@ -10,7 +10,7 @@ const parseOrigin = (raw?: string | null): URL | null => {
   }
 };
 
-/** Backend origin for /api/media — from layout meta (runtime) or NEXT_PUBLIC_API_URL. */
+/** JSON API origin (meta api-base-url or NEXT_PUBLIC_API_URL). */
 export const getApiOrigin = (): URL | null => {
   if (typeof document !== "undefined") {
     const metaOrigin = parseOrigin(document.querySelector('meta[name="api-base-url"]')?.getAttribute("content"));
@@ -19,36 +19,35 @@ export const getApiOrigin = (): URL | null => {
   return parseOrigin(getPublicApiUrl());
 };
 
+/** HLS /api/media origin (meta media-api-base-url or derived media API URL). */
+export const getMediaApiOrigin = (): URL | null => {
+  if (typeof document !== "undefined") {
+    const metaOrigin = parseOrigin(
+      document.querySelector('meta[name="media-api-base-url"]')?.getAttribute("content")
+    );
+    if (metaOrigin) return metaOrigin;
+  }
+  return parseOrigin(getMediaApiUrl());
+};
+
 const isLocalHostname = (hostname: string) =>
   hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
 
 const isMediaProxyPath = (pathname: string) => pathname.includes("/api/media/");
 
-const mediaUrlTargetsFrontend = (mediaHost: string, apiOrigin: URL) => {
-  if (mediaHost === apiOrigin.host) return false;
-
-  if (typeof window !== "undefined" && mediaHost === window.location.host) {
-    return true;
-  }
-
-  const siteOrigin = parseOrigin(getPublicSiteUrl());
-  return Boolean(siteOrigin && mediaHost === siteOrigin.host);
-};
-
 /**
- * Routes /api/media/* to the configured backend origin.
- * Fixes API responses that used the user-site Host header instead of the API host.
+ * Routes /api/media/* to the media API origin (may differ from NEXT_PUBLIC_API_URL when both share the site host).
  */
 export const normalizeMediaUrl = (url?: string): string => {
   const trimmed = (url || "").trim();
   if (!trimmed || trimmed === "about:blank") return trimmed;
 
-  const apiOrigin = getApiOrigin();
+  const mediaOrigin = getMediaApiOrigin();
 
   let parsed: URL;
   try {
-    if (trimmed.startsWith("/") && apiOrigin) {
-      parsed = new URL(trimmed, apiOrigin);
+    if (trimmed.startsWith("/") && mediaOrigin) {
+      parsed = new URL(trimmed, mediaOrigin);
     } else {
       parsed = new URL(trimmed);
     }
@@ -56,11 +55,9 @@ export const normalizeMediaUrl = (url?: string): string => {
     return trimmed;
   }
 
-  if (isMediaProxyPath(parsed.pathname) && apiOrigin) {
-    if (mediaUrlTargetsFrontend(parsed.host, apiOrigin)) {
-      parsed.protocol = apiOrigin.protocol;
-      parsed.host = apiOrigin.host;
-    }
+  if (isMediaProxyPath(parsed.pathname) && mediaOrigin && parsed.host !== mediaOrigin.host) {
+    parsed.protocol = mediaOrigin.protocol;
+    parsed.host = mediaOrigin.host;
     return parsed.toString();
   }
 

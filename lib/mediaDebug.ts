@@ -1,5 +1,5 @@
-import { getPublicApiUrl, getPublicSiteUrl } from "./apiConfig";
-import { getApiOrigin, normalizeMediaUrl } from "./mediaUrl";
+import { getMediaApiUrl, getPublicApiUrl, getPublicSiteUrl } from "./apiConfig";
+import { getApiOrigin, getMediaApiOrigin, normalizeMediaUrl } from "./mediaUrl";
 import { Video } from "./types";
 
 const DEBUG_PREFIX = "[media-debug]";
@@ -40,8 +40,11 @@ export type MediaDebugSnapshot = {
   pageOrigin: string;
   configuredApiUrl: string;
   configuredSiteUrl: string;
+  configuredMediaApiUrl: string;
   metaApiUrl: string;
+  metaMediaApiUrl: string;
   resolvedApiOrigin: string;
+  resolvedMediaApiOrigin: string;
   apiHostMatchesSite: boolean;
   issues: string[];
   urlChecks: MediaUrlCheck[];
@@ -56,7 +59,7 @@ const buildUrlCheck = (label: string, raw?: string): MediaUrlCheck | null => {
 
   const normalized = normalizeMediaUrl(value);
   const parsed = parseUrl(normalized);
-  const apiOrigin = getApiOrigin();
+  const mediaOrigin = getMediaApiOrigin();
   const siteOrigin = parseUrl(getPublicSiteUrl());
 
   return {
@@ -67,7 +70,7 @@ const buildUrlCheck = (label: string, raw?: string): MediaUrlCheck | null => {
     host: parsed?.host || "(invalid)",
     isMediaProxy: parsed?.pathname.includes("/api/media/") ?? false,
     pointsAtSite: Boolean(parsed && siteOrigin && parsed.host === siteOrigin.host),
-    pointsAtApi: Boolean(parsed && apiOrigin && parsed.host === apiOrigin.host),
+    pointsAtApi: Boolean(parsed && mediaOrigin && parsed.host === mediaOrigin.host),
   };
 };
 
@@ -75,12 +78,14 @@ export const collectMediaIssues = (checks: MediaUrlCheck[], apiHostMatchesSite: 
   const issues: string[] = [];
 
   if (apiHostMatchesSite) {
-    issues.push("NEXT_PUBLIC_API_URL and NEXT_PUBLIC_SITE_URL share the same host — /api/media must be proxied to Express.");
+    issues.push(
+      "NEXT_PUBLIC_API_URL equals NEXT_PUBLIC_SITE_URL — JSON API may be proxied through the site, but /api/media must reach Express. Media URLs are rewritten to the derived media API host (api.*). Set NEXT_PUBLIC_MEDIA_API_URL if your API host is different."
+    );
   }
 
   for (const check of checks) {
     if (check.isMediaProxy && check.pointsAtSite && !check.pointsAtApi) {
-      issues.push(`${check.label} points at the user site (${check.host}), not the API backend.`);
+      issues.push(`${check.label} still points at the user site (${check.host}) after normalization.`);
     }
     if (check.raw.startsWith("http://") && !check.raw.includes("localhost") && !check.raw.includes("127.0.0.1")) {
       issues.push(`${check.label} uses HTTP — browsers block this on HTTPS pages.`);
@@ -100,10 +105,16 @@ export const buildMediaDebugSnapshot = (
 ): MediaDebugSnapshot => {
   const configuredApiUrl = getPublicApiUrl();
   const configuredSiteUrl = getPublicSiteUrl();
+  const configuredMediaApiUrl = getMediaApiUrl();
   const apiOrigin = getApiOrigin();
+  const mediaOrigin = getMediaApiOrigin();
   const metaApiUrl =
     typeof document !== "undefined"
       ? document.querySelector('meta[name="api-base-url"]')?.getAttribute("content") || ""
+      : "";
+  const metaMediaApiUrl =
+    typeof document !== "undefined"
+      ? document.querySelector('meta[name="media-api-base-url"]')?.getAttribute("content") || ""
       : "";
 
   let apiHostMatchesSite = false;
@@ -133,8 +144,11 @@ export const buildMediaDebugSnapshot = (
     pageOrigin: typeof window !== "undefined" ? window.location.origin : "(server)",
     configuredApiUrl,
     configuredSiteUrl,
+    configuredMediaApiUrl,
     metaApiUrl,
+    metaMediaApiUrl,
     resolvedApiOrigin: apiOrigin?.origin || "",
+    resolvedMediaApiOrigin: mediaOrigin?.origin || "",
     apiHostMatchesSite,
     issues,
     urlChecks,
@@ -151,8 +165,11 @@ export const logMediaDebug = (label: string, snapshot: MediaDebugSnapshot) => {
   console.log("config", {
     configuredApiUrl: snapshot.configuredApiUrl,
     configuredSiteUrl: snapshot.configuredSiteUrl,
+    configuredMediaApiUrl: snapshot.configuredMediaApiUrl,
     metaApiUrl: snapshot.metaApiUrl,
+    metaMediaApiUrl: snapshot.metaMediaApiUrl,
     resolvedApiOrigin: snapshot.resolvedApiOrigin,
+    resolvedMediaApiOrigin: snapshot.resolvedMediaApiOrigin,
     pageOrigin: snapshot.pageOrigin,
     runtime: snapshot.runtime,
   });

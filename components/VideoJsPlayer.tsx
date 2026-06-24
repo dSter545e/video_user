@@ -3,6 +3,7 @@
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { normalizeMediaUrl } from "../lib/mediaUrl";
 
 type VideoSource = {
   src: string;
@@ -18,6 +19,30 @@ type VideoJsPlayerProps = {
 };
 
 type VideoJsPlayerInstance = ReturnType<typeof videojs>;
+
+type VhsXhrOptions = { uri?: string };
+type VhsXhr = { beforeRequest?: (options: VhsXhrOptions) => VhsXhrOptions | void };
+
+let vhsMediaRewriteInstalled = false;
+
+const installVhsMediaUrlRewrite = () => {
+  if (vhsMediaRewriteInstalled || typeof window === "undefined") return;
+
+  const videojsLib = videojs as typeof videojs & { Vhs?: { xhr?: VhsXhr } };
+  const xhr = videojsLib.Vhs?.xhr;
+  if (!xhr) return;
+
+  const previous = xhr.beforeRequest;
+  xhr.beforeRequest = (options) => {
+    const next = previous ? previous(options) || options : options;
+    if (next?.uri) {
+      next.uri = normalizeMediaUrl(next.uri);
+    }
+    return next;
+  };
+
+  vhsMediaRewriteInstalled = true;
+};
 
 const isSlowNetwork = () => {
   if (typeof navigator === "undefined") return false;
@@ -36,17 +61,18 @@ const isSlowNetwork = () => {
 const getSourceType = (url: string) => (url.endsWith(".m3u8") ? "application/x-mpegURL" : "video/mp4");
 
 const buildOrderedSources = (src: string, qualityVariants: VideoSource[] = []) => {
-  if (src && src.endsWith(".m3u8")) {
-    return [{ src, type: "application/x-mpegURL" }];
+  const normalizedSrc = normalizeMediaUrl(src);
+  if (normalizedSrc && normalizedSrc.endsWith(".m3u8")) {
+    return [{ src: normalizedSrc, type: "application/x-mpegURL" }];
   }
   const uniqueBySrc = new Map<string, VideoSource>();
   for (const item of qualityVariants) {
     if (item?.src) {
-      uniqueBySrc.set(item.src, item);
+      uniqueBySrc.set(normalizeMediaUrl(item.src), { ...item, src: normalizeMediaUrl(item.src) });
     }
   }
-  if (src) {
-    uniqueBySrc.set(src, { src });
+  if (normalizedSrc) {
+    uniqueBySrc.set(normalizedSrc, { src: normalizedSrc });
   }
   const all = Array.from(uniqueBySrc.values());
   if (all.length === 0) return [];
@@ -284,27 +310,35 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
   const playerRef = useRef<VideoJsPlayerInstance | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("auto");
   const safePoster = isImagePosterUrl(poster) ? poster : undefined;
+  const normalizedSrc = useMemo(() => normalizeMediaUrl(src), [src]);
 
   const qualityOptions = useMemo(() => {
     const uniqueBySrc = new Map<string, VideoSource>();
     for (const item of qualityVariants) {
-      if (item?.src) uniqueBySrc.set(item.src, item);
+      if (item?.src) {
+        const normalized = normalizeMediaUrl(item.src);
+        uniqueBySrc.set(normalized, { ...item, src: normalized });
+      }
     }
-    if (src) uniqueBySrc.set(src, { src, label: "Source", height: 0 });
+    if (normalizedSrc) uniqueBySrc.set(normalizedSrc, { src: normalizedSrc, label: "Source", height: 0 });
 
     const list = Array.from(uniqueBySrc.values()).sort((a, b) => (a.height || 0) - (b.height || 0));
     return list;
-  }, [qualityVariants, src]);
+  }, [qualityVariants, normalizedSrc]);
 
   useEffect(() => {
-    if (!containerRef.current || !src || src === "about:blank" || !src.includes(".")) return;
-    const orderedSources = buildOrderedSources(src, qualityVariants);
+    installVhsMediaUrlRewrite();
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current || !normalizedSrc || normalizedSrc === "about:blank" || !normalizedSrc.includes(".")) return;
+    const orderedSources = buildOrderedSources(normalizedSrc, qualityVariants);
     const sources =
       selectedSource === "auto"
         ? orderedSources
         : [
-            { src: selectedSource, type: getSourceType(selectedSource) },
-            ...orderedSources.filter((item) => item.src !== selectedSource),
+            { src: normalizeMediaUrl(selectedSource), type: getSourceType(normalizeMediaUrl(selectedSource)) },
+            ...orderedSources.filter((item) => item.src !== normalizeMediaUrl(selectedSource)),
           ];
 
     if (!playerRef.current) {
@@ -365,7 +399,7 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
     attachTimeControls(player);
     attachFullscreenControl(player);
     attachQualityControl(player, qualityOptions, selectedSource, setSelectedSource);
-  }, [src, safePoster, qualityVariants, selectedSource, qualityOptions, onPlayedSeconds]);
+  }, [normalizedSrc, safePoster, qualityVariants, selectedSource, qualityOptions, onPlayedSeconds]);
 
   useEffect(() => {
     return () => {
@@ -377,4 +411,4 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
   }, []);
 
   return <div data-vjs-player ref={containerRef} className="video-player-shell" />;
-}
+};
