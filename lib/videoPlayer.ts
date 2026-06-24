@@ -8,28 +8,37 @@ export type PlayerSource = {
 };
 
 type VhsXhrOptions = { uri?: string };
-type VhsXhr = { onRequest?: (options: VhsXhrOptions) => VhsXhrOptions | void };
+type VhsXhr = {
+  beforeRequest?: (options: VhsXhrOptions) => VhsXhrOptions | void;
+  onRequest?: (options: VhsXhrOptions) => VhsXhrOptions | void;
+};
 
 let vhsHookInstalled = false;
+
+const rewriteVhsUri = (options: VhsXhrOptions) => {
+  if (options?.uri) options.uri = normalizeMediaUrl(options.uri);
+  return options;
+};
 
 /** Rewrite nested HLS playlist/segment URLs to the media API host. */
 export const installVhsMediaHook = () => {
   if (vhsHookInstalled || typeof window === "undefined") return;
 
   const xhr = (videojs as typeof videojs & { Vhs?: { xhr?: VhsXhr } }).Vhs?.xhr;
-  if (!xhr?.onRequest) return;
+  if (!xhr) return;
 
-  const previous = xhr.onRequest;
-  xhr.onRequest = (options) => {
-    const next = previous(options) || options;
-    if (next.uri) next.uri = normalizeMediaUrl(next.uri);
-    return next;
-  };
+  if (typeof xhr.onRequest === "function") {
+    const previous = xhr.onRequest;
+    xhr.onRequest = (options) => rewriteVhsUri(previous(options) || options);
+  } else {
+    const previous = xhr.beforeRequest;
+    xhr.beforeRequest = (options) => rewriteVhsUri(previous ? previous(options) || options : options);
+  }
 
   vhsHookInstalled = true;
 };
 
-const isHls = (url: string) => url.endsWith(".m3u8");
+const isHls = (url: string) => /\.m3u8(\?|$)/i.test(url);
 
 export const getPlayerMimeType = (url: string) =>
   isHls(url) ? "application/x-mpegURL" : "video/mp4";
