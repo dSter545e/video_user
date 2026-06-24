@@ -1,12 +1,22 @@
 import { Video } from "./types";
+import { getPublicApiUrl, getPublicSiteUrl } from "./apiConfig";
 
-const getApiOrigin = (): URL | null => {
-  const raw = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const parseOrigin = (raw?: string | null): URL | null => {
+  if (!raw?.trim()) return null;
   try {
-    return new URL(raw);
+    return new URL(raw.trim());
   } catch {
     return null;
   }
+};
+
+/** Backend origin for /api/media — from layout meta (runtime) or NEXT_PUBLIC_API_URL. */
+export const getApiOrigin = (): URL | null => {
+  if (typeof document !== "undefined") {
+    const metaOrigin = parseOrigin(document.querySelector('meta[name="api-base-url"]')?.getAttribute("content"));
+    if (metaOrigin) return metaOrigin;
+  }
+  return parseOrigin(getPublicApiUrl());
 };
 
 const isLocalHostname = (hostname: string) =>
@@ -14,9 +24,20 @@ const isLocalHostname = (hostname: string) =>
 
 const isMediaProxyPath = (pathname: string) => pathname.includes("/api/media/");
 
+const mediaUrlTargetsFrontend = (mediaHost: string, apiOrigin: URL) => {
+  if (mediaHost === apiOrigin.host) return false;
+
+  if (typeof window !== "undefined" && mediaHost === window.location.host) {
+    return true;
+  }
+
+  const siteOrigin = parseOrigin(getPublicSiteUrl());
+  return Boolean(siteOrigin && mediaHost === siteOrigin.host);
+};
+
 /**
- * Ensures HTTPS and routes /api/media/* through NEXT_PUBLIC_API_URL (api.xhub4u.online).
- * Fixes mixed-content and wrong-host 404s when the API returns the user-site domain.
+ * Routes /api/media/* to the configured backend origin.
+ * Fixes API responses that used the user-site Host header instead of the API host.
  */
 export const normalizeMediaUrl = (url?: string): string => {
   const trimmed = (url || "").trim();
@@ -36,8 +57,10 @@ export const normalizeMediaUrl = (url?: string): string => {
   }
 
   if (isMediaProxyPath(parsed.pathname) && apiOrigin) {
-    parsed.protocol = apiOrigin.protocol;
-    parsed.host = apiOrigin.host;
+    if (mediaUrlTargetsFrontend(parsed.host, apiOrigin)) {
+      parsed.protocol = apiOrigin.protocol;
+      parsed.host = apiOrigin.host;
+    }
     return parsed.toString();
   }
 

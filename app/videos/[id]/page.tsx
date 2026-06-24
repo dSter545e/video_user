@@ -3,6 +3,7 @@ import VideoWatchClient from "../../../components/VideoWatchClient";
 import { buildPageMetadata } from "../../../lib/pageMetadata";
 import { SEO, absoluteUrl } from "../../../lib/seo";
 import { getVideoPosterUrl } from "../../../lib/videoPoster";
+import { normalizeVideoMedia } from "../../../lib/mediaUrl";
 import { getVideoById, getVideoComments } from "../../../lib/serverData";
 
 export const revalidate = 30;
@@ -71,7 +72,7 @@ export default async function VideoWatchPage({ params }: VideoWatchPageProps) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(videoJsonLd) }} />
-      <VideoWatchClient initialVideo={video} initialComments={comments} />
+      <VideoWatchClient initialVideo={normalizeVideoMedia(video)} initialComments={comments} />
     </>
   );
 }

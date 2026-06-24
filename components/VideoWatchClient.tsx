@@ -7,6 +7,7 @@ import VideoPlayerWithAds from "./VideoPlayerWithAds";
 import RelatedVideoItem from "./RelatedVideoItem";
 import { addVideoCommentApi, getRecommendedVideosApi, reactToVideoApi, trackVideoViewApi } from "../lib/api";
 import { Video, VideoComment } from "../lib/types";
+import { normalizeVideoMedia } from "../lib/mediaUrl";
 import { getVideoPosterImageUrl } from "../lib/videoPoster";
 import { isVideoPlayable, resolveWatchPlaybackSrc } from "../lib/videoPlayback";
 import { getViewerUser } from "../lib/auth";
@@ -28,8 +29,10 @@ const getUserIdentifier = () => {
 };
 
 export default function VideoWatchClient({ initialVideo, initialComments }: VideoWatchClientProps) {
-  const [video, setVideo] = useState(initialVideo);
-  const [recommendedVideos, setRecommendedVideos] = useState<Video[]>(initialVideo.recommendedVideos || []);
+  const [video, setVideo] = useState(() => normalizeVideoMedia(initialVideo));
+  const [recommendedVideos, setRecommendedVideos] = useState<Video[]>(
+    () => (initialVideo.recommendedVideos || []).map((item) => normalizeVideoMedia(item))
+  );
   const [comments, setComments] = useState(initialComments);
   const [commentText, setCommentText] = useState("");
   const [authorName, setAuthorName] = useState("User");

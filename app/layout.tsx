@@ -10,6 +10,7 @@ import ThemeProvider from "../components/ThemeProvider";
 import SiteAdShell from "../components/SiteAdShell";
 import ThemeInit from "../components/ThemeInit";
 import { SEO, absoluteUrl } from "../lib/seo";
+import { getPublicApiUrl, logApiConfigWarnings } from "../lib/apiConfig";
 import { getSiteVerificationMetadata } from "../lib/siteVerification";
 
 const geistSans = Geist({
@@ -61,12 +62,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const apiBaseUrl = getPublicApiUrl();
+
+  logApiConfigWarnings();
+
   return (
     <html
       lang="en"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <meta name="api-base-url" content={apiBaseUrl} />
+      </head>
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <ThemeInit />
         <AuthProvider>

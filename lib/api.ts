@@ -1,8 +1,10 @@
 import { Category, CategoryVideo, PaginatedVideosResponse, UserAuthResponse, Video, VideoComment } from "./types";
+import { getPublicApiUrl } from "./apiConfig";
 import { dynamicFetchInit, publicFetchInit } from "./fetchConfig";
 import { normalizeVideoList, normalizeVideoMedia } from "./mediaUrl";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+/** Always the public backend origin so API media URLs use the correct host. */
+const BACKEND_URL = getPublicApiUrl();
 
 export async function getVideosApi(): Promise<Video[]> {
   try {
