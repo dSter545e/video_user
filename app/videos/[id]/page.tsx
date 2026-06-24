@@ -3,8 +3,10 @@ import VideoWatchClient from "../../../components/VideoWatchClient";
 import { buildPageMetadata } from "../../../lib/pageMetadata";
 import { SEO, absoluteUrl } from "../../../lib/seo";
 import { getVideoPosterUrl } from "../../../lib/videoPoster";
+import { buildMediaDebugSnapshot, isMediaDebugEnabled, logMediaDebug } from "../../../lib/mediaDebug";
 import { normalizeVideoMedia } from "../../../lib/mediaUrl";
-import { getVideoById, getVideoComments } from "../../../lib/serverData";
+import { resolveWatchPlaybackSrc } from "../../../lib/videoPlayback";
+import { getVideoById, getVideoByIdRaw, getVideoComments } from "../../../lib/serverData";
 
 export const revalidate = 30;
 
@@ -40,7 +42,11 @@ export async function generateMetadata({ params }: VideoWatchPageProps) {
 
 export default async function VideoWatchPage({ params }: VideoWatchPageProps) {
   const { id } = await params;
-  const [video, comments] = await Promise.all([getVideoById(id), getVideoComments(id)]);
+  const [video, comments, rawVideo] = await Promise.all([
+    getVideoById(id),
+    getVideoComments(id),
+    isMediaDebugEnabled() ? getVideoByIdRaw(id) : Promise.resolve(null),
+  ]);
 
   if (!video) {
     return (
@@ -54,6 +60,15 @@ export default async function VideoWatchPage({ params }: VideoWatchPageProps) {
   }
 
   const posterUrl = getVideoPosterUrl(video);
+  const normalizedVideo = normalizeVideoMedia(video);
+
+  if (isMediaDebugEnabled()) {
+    logMediaDebug(
+      "server watch page",
+      buildMediaDebugSnapshot(normalizedVideo, resolveWatchPlaybackSrc(normalizedVideo), rawVideo || video)
+    );
+  }
+
   const videoJsonLd = {
     "@context": "https://schema.org",
     "@type": "VideoObject",
@@ -72,7 +87,7 @@ export default async function VideoWatchPage({ params }: VideoWatchPageProps) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(videoJsonLd) }} />
-      <VideoWatchClient initialVideo={normalizeVideoMedia(video)} initialComments={comments} />
+      <VideoWatchClient initialVideo={normalizedVideo} initialComments={comments} />
     </>
   );
 }

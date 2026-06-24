@@ -1,6 +1,7 @@
 import { Category, CategoryVideo, PaginatedVideosResponse, UserAuthResponse, Video, VideoComment } from "./types";
 import { getPublicApiUrl } from "./apiConfig";
 import { dynamicFetchInit, publicFetchInit } from "./fetchConfig";
+import { logApiVideoFetch } from "./mediaDebug";
 import { normalizeVideoList, normalizeVideoMedia } from "./mediaUrl";
 
 /** Always the public backend origin so API media URLs use the correct host. */
@@ -97,15 +98,23 @@ export async function getVideosByCategoryApi(categoryId: string): Promise<Catego
   }
 }
 
-export async function getVideoByIdApi(id: string, userIdentifier?: string): Promise<Video | null> {
+export async function getVideoByIdRawApi(id: string, userIdentifier?: string): Promise<Video | null> {
   try {
     const suffix = userIdentifier ? `?userIdentifier=${encodeURIComponent(userIdentifier)}` : "";
-    const response = await fetch(`${BACKEND_URL}/api/videos/${id}${suffix}`, publicFetchInit(30));
+    const endpoint = `/api/videos/${id}${suffix}`;
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, publicFetchInit(30));
     if (!response.ok) return null;
-    return normalizeVideoMedia(await response.json());
+    const raw = (await response.json()) as Video;
+    logApiVideoFetch(endpoint, raw);
+    return raw;
   } catch (_error) {
     return null;
   }
+}
+
+export async function getVideoByIdApi(id: string, userIdentifier?: string): Promise<Video | null> {
+  const raw = await getVideoByIdRawApi(id, userIdentifier);
+  return raw ? normalizeVideoMedia(raw) : null;
 }
 
 export async function trackVideoViewApi(id: string, userIdentifier: string, watchedSeconds: number) {

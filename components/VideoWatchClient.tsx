@@ -6,7 +6,10 @@ import { FiThumbsDown, FiThumbsUp } from "react-icons/fi";
 import VideoPlayerWithAds from "./VideoPlayerWithAds";
 import RelatedVideoItem from "./RelatedVideoItem";
 import { addVideoCommentApi, getRecommendedVideosApi, reactToVideoApi, trackVideoViewApi } from "../lib/api";
+import { getPublicApiUrl } from "../lib/apiConfig";
+import { isMediaDebugEnabled } from "../lib/mediaDebug";
 import { Video, VideoComment } from "../lib/types";
+import MediaDebugPanel from "./MediaDebugPanel";
 import { normalizeVideoMedia } from "../lib/mediaUrl";
 import { getVideoPosterImageUrl } from "../lib/videoPoster";
 import { isVideoPlayable, resolveWatchPlaybackSrc } from "../lib/videoPlayback";
@@ -37,6 +40,7 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
   const [commentText, setCommentText] = useState("");
   const [authorName, setAuthorName] = useState("User");
   const [viewer] = useState(getViewerUser());
+  const [rawApiVideo, setRawApiVideo] = useState<Video | null>(null);
   const lastLoggedWatchSecondRef = useRef(0);
   const previousPlayedSecondsRef = useRef(0);
   const crossedViewThresholdRef = useRef(false);
@@ -67,6 +71,29 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
     };
     void loadRecommendations();
   }, [video._id, video.recommendedVideos]);
+
+  useEffect(() => {
+    if (!isMediaDebugEnabled()) return;
+
+    const loadRawApiVideo = async () => {
+      try {
+        const response = await fetch(`${getPublicApiUrl()}/api/videos/${video.slug || video._id}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          console.warn("[media-debug] raw API fetch failed", response.status, response.statusText);
+          return;
+        }
+        const raw = (await response.json()) as Video;
+        setRawApiVideo(raw);
+        console.log("[media-debug] raw API videoUrl", raw.videoUrl);
+      } catch (error) {
+        console.warn("[media-debug] raw API fetch error", error);
+      }
+    };
+
+    void loadRawApiVideo();
+  }, [video._id, video.slug]);
 
   const tagsText = useMemo(() => (video.tags || []).map((tag) => `#${tag.displayName}`).join(" "), [video.tags]);
   const posterUrl = useMemo(() => getVideoPosterImageUrl(video), [video]);
@@ -140,6 +167,8 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
     <main className="watch-page mx-auto w-full max-w-[1600px]">
       <div className="watch-page__layout flex flex-col lg:flex-row lg:items-start">
         <div className="watch-page__primary min-w-0 lg:w-3/4">
+          <MediaDebugPanel video={video} rawVideo={rawApiVideo || video} playbackSrc={playbackSrc} />
+
           {playable ? (
             <VideoPlayerWithAds
               src={playbackSrc}
