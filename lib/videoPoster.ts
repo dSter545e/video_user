@@ -1,4 +1,5 @@
 import { Video } from "./types";
+import { ensureSecureMediaUrl } from "./mediaUrl";
 
 const isHlsUrl = (url: string) => /\.m3u8(\?|$)/i.test(url);
 
@@ -13,7 +14,7 @@ const isImagePosterUrl = (url?: string) => {
 /** Image thumbnail only — safe for the watch-page player (no video URL fallback). */
 export const getVideoPosterImageUrl = (video: Video) => {
   if (isImagePosterUrl(video.thumbnail)) {
-    return video.thumbnail.trim();
+    return ensureSecureMediaUrl(video.thumbnail.trim());
   }
   return "";
 };
@@ -21,7 +22,7 @@ export const getVideoPosterImageUrl = (video: Video) => {
 /** Thumbnail URL, or a progressive MP4 frame source when thumbnail was not uploaded. */
 export const getVideoPosterUrl = (video: Video) => {
   if (isUsableMediaUrl(video.thumbnail)) {
-    return video.thumbnail.trim();
+    return ensureSecureMediaUrl(video.thumbnail.trim());
   }
 
   const progressiveVariant = [...(video.qualityVariants || [])]
@@ -29,15 +30,15 @@ export const getVideoPosterUrl = (video: Video) => {
     .sort((a, b) => (b.height || 0) - (a.height || 0))[0];
 
   if (progressiveVariant?.url) {
-    return progressiveVariant.url;
+    return ensureSecureMediaUrl(progressiveVariant.url);
   }
 
   if (isUsableMediaUrl(video.videoUrl) && !isHlsUrl(video.videoUrl)) {
-    return video.videoUrl.trim();
+    return ensureSecureMediaUrl(video.videoUrl.trim());
   }
 
   if (isUsableMediaUrl(video.previewUrl)) {
-    return video.previewUrl.trim();
+    return ensureSecureMediaUrl(video.previewUrl.trim());
   }
 
   return "";

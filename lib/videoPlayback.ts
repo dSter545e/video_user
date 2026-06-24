@@ -1,4 +1,5 @@
 import { Video } from "./types";
+import { ensureSecureMediaUrl } from "./mediaUrl";
 
 const isHlsUrl = (url: string) => /\.m3u8(\?|$)/i.test(url);
 
@@ -17,7 +18,7 @@ export const resolveWatchPlaybackSrc = (
   const variants = [...(video.qualityVariants || [])].filter((variant) => variant?.url?.trim());
 
   if (videoUrl && isHlsUrl(videoUrl) && !isPreviewClipUrl(videoUrl)) {
-    return videoUrl;
+    return ensureSecureMediaUrl(videoUrl);
   }
 
   const looksLikePreview =
@@ -25,11 +26,11 @@ export const resolveWatchPlaybackSrc = (
 
   const pickHls = () => {
     const master = variants.find((variant) => /master\.m3u8/i.test(variant.url));
-    if (master?.url) return master.url.trim();
+    if (master?.url) return ensureSecureMediaUrl(master.url.trim());
     const sorted = [...variants]
       .filter((variant) => isHlsUrl(variant.url))
       .sort((a, b) => (a.height || 0) - (b.height || 0));
-    return sorted[0]?.url?.trim() || "";
+    return ensureSecureMediaUrl(sorted[0]?.url?.trim() || "");
   };
 
   if (looksLikePreview) {
@@ -38,13 +39,13 @@ export const resolveWatchPlaybackSrc = (
   }
 
   if (videoUrl && !looksLikePreview) {
-    return videoUrl;
+    return ensureSecureMediaUrl(videoUrl);
   }
 
   const fallbackHls = pickHls();
   if (fallbackHls) return fallbackHls;
 
-  return videoUrl;
+  return ensureSecureMediaUrl(videoUrl);
 };
 
 export const isVideoPlayable = (video: Pick<Video, "videoUrl" | "processingStatus" | "qualityVariants">) => {
