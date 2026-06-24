@@ -7,7 +7,7 @@ import VideoPlayerWithAds from "./VideoPlayerWithAds";
 import RelatedVideoItem from "./RelatedVideoItem";
 import { addVideoCommentApi, getRecommendedVideosApi, reactToVideoApi, trackVideoViewApi } from "../lib/api";
 import { getPublicApiUrl } from "../lib/apiConfig";
-import { isMediaDebugEnabled } from "../lib/mediaDebug";
+import { isMediaDebugEnabled, type MediaDebugConfig } from "../lib/mediaDebug";
 import { Video, VideoComment } from "../lib/types";
 import MediaDebugPanel from "./MediaDebugPanel";
 import { normalizeVideoMedia } from "../lib/mediaUrl";
@@ -20,6 +20,7 @@ import AdSlot, { AdInFeed } from "./AdSlot";
 type VideoWatchClientProps = {
   initialVideo: Video;
   initialComments: VideoComment[];
+  mediaDebugConfig: MediaDebugConfig;
 };
 
 const getUserIdentifier = () => {
@@ -31,7 +32,11 @@ const getUserIdentifier = () => {
   return generated;
 };
 
-export default function VideoWatchClient({ initialVideo, initialComments }: VideoWatchClientProps) {
+export default function VideoWatchClient({
+  initialVideo,
+  initialComments,
+  mediaDebugConfig,
+}: VideoWatchClientProps) {
   const [video, setVideo] = useState(() => normalizeVideoMedia(initialVideo));
   const [recommendedVideos, setRecommendedVideos] = useState<Video[]>(
     () => (initialVideo.recommendedVideos || []).map((item) => normalizeVideoMedia(item))
@@ -39,11 +44,15 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
   const [comments, setComments] = useState(initialComments);
   const [commentText, setCommentText] = useState("");
   const [authorName, setAuthorName] = useState("User");
-  const [viewer] = useState(getViewerUser());
+  const [viewer, setViewer] = useState<ReturnType<typeof getViewerUser>>(null);
   const [rawApiVideo, setRawApiVideo] = useState<Video | null>(null);
   const lastLoggedWatchSecondRef = useRef(0);
   const previousPlayedSecondsRef = useRef(0);
   const crossedViewThresholdRef = useRef(false);
+
+  useEffect(() => {
+    setViewer(getViewerUser());
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -167,7 +176,12 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
     <main className="watch-page mx-auto w-full max-w-[1600px]">
       <div className="watch-page__layout flex flex-col lg:flex-row lg:items-start">
         <div className="watch-page__primary min-w-0 lg:w-3/4">
-          <MediaDebugPanel video={video} rawVideo={rawApiVideo || video} playbackSrc={playbackSrc} />
+          <MediaDebugPanel
+            video={video}
+            rawVideo={rawApiVideo || video}
+            playbackSrc={playbackSrc}
+            config={mediaDebugConfig}
+          />
 
           {playable ? (
             <VideoPlayerWithAds

@@ -4,6 +4,7 @@ import { buildPageMetadata } from "../../../lib/pageMetadata";
 import { SEO, absoluteUrl } from "../../../lib/seo";
 import { getVideoPosterUrl } from "../../../lib/videoPoster";
 import { buildMediaDebugSnapshot, isMediaDebugEnabled, logMediaDebug } from "../../../lib/mediaDebug";
+import { getMediaApiUrl, getPublicApiUrl, getPublicSiteUrl } from "../../../lib/apiConfig";
 import { normalizeVideoMedia } from "../../../lib/mediaUrl";
 import { resolveWatchPlaybackSrc } from "../../../lib/videoPlayback";
 import { getVideoById, getVideoByIdRaw, getVideoComments } from "../../../lib/serverData";
@@ -42,11 +43,18 @@ export async function generateMetadata({ params }: VideoWatchPageProps) {
 
 export default async function VideoWatchPage({ params }: VideoWatchPageProps) {
   const { id } = await params;
-  const [video, comments, rawVideo] = await Promise.all([
-    getVideoById(id),
+  const debugEnabled = isMediaDebugEnabled();
+  const [fetchedVideo, comments] = await Promise.all([
+    debugEnabled ? getVideoByIdRaw(id) : getVideoById(id),
     getVideoComments(id),
-    isMediaDebugEnabled() ? getVideoByIdRaw(id) : Promise.resolve(null),
   ]);
+
+  const rawVideo = debugEnabled ? fetchedVideo : null;
+  const video = fetchedVideo
+    ? debugEnabled
+      ? normalizeVideoMedia(fetchedVideo)
+      : fetchedVideo
+    : null;
 
   if (!video) {
     return (
@@ -61,11 +69,21 @@ export default async function VideoWatchPage({ params }: VideoWatchPageProps) {
 
   const posterUrl = getVideoPosterUrl(video);
   const normalizedVideo = normalizeVideoMedia(video);
+  const mediaDebugConfig = {
+    apiBaseUrl: getPublicApiUrl(),
+    mediaApiBaseUrl: getMediaApiUrl(),
+    siteUrl: getPublicSiteUrl(),
+  };
 
   if (isMediaDebugEnabled()) {
     logMediaDebug(
       "server watch page",
-      buildMediaDebugSnapshot(normalizedVideo, resolveWatchPlaybackSrc(normalizedVideo), rawVideo || video)
+      buildMediaDebugSnapshot(
+        normalizedVideo,
+        resolveWatchPlaybackSrc(normalizedVideo),
+        rawVideo || video,
+        mediaDebugConfig
+      )
     );
   }
 
@@ -87,7 +105,11 @@ export default async function VideoWatchPage({ params }: VideoWatchPageProps) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(videoJsonLd) }} />
-      <VideoWatchClient initialVideo={normalizedVideo} initialComments={comments} />
+      <VideoWatchClient
+        initialVideo={normalizedVideo}
+        initialComments={comments}
+        mediaDebugConfig={mediaDebugConfig}
+      />
     </>
   );
 }

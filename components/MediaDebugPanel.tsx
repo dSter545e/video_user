@@ -7,6 +7,7 @@ import {
   isMediaDebugEnabled,
   logMediaDebug,
   probeMediaUrl,
+  type MediaDebugConfig,
   type MediaProbeResult,
 } from "../lib/mediaDebug";
 
@@ -14,24 +15,30 @@ type MediaDebugPanelProps = {
   video: Video;
   rawVideo: Video;
   playbackSrc: string;
+  config: MediaDebugConfig;
 };
 
-export default function MediaDebugPanel({ video, rawVideo, playbackSrc }: MediaDebugPanelProps) {
+export default function MediaDebugPanel({ video, rawVideo, playbackSrc, config }: MediaDebugPanelProps) {
   const [open, setOpen] = useState(true);
   const [probe, setProbe] = useState<MediaProbeResult | null>(null);
   const [probing, setProbing] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const snapshot = useMemo(
-    () => buildMediaDebugSnapshot(video, playbackSrc, rawVideo),
-    [video, rawVideo, playbackSrc]
+    () => buildMediaDebugSnapshot(video, playbackSrc, rawVideo, config),
+    [video, rawVideo, playbackSrc, config]
   );
 
   useEffect(() => {
-    if (!isMediaDebugEnabled()) return;
+    if (!mounted || !isMediaDebugEnabled()) return;
     logMediaDebug("watch page", snapshot);
-  }, [snapshot]);
+  }, [mounted, snapshot]);
 
-  if (!isMediaDebugEnabled()) return null;
+  if (!mounted || !isMediaDebugEnabled()) return null;
 
   const runProbe = async () => {
     setProbing(true);

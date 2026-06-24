@@ -1,5 +1,5 @@
 import { getMediaApiUrl, getPublicApiUrl, getPublicSiteUrl } from "./apiConfig";
-import { getApiOrigin, getMediaApiOrigin, normalizeMediaUrl } from "./mediaUrl";
+import { normalizeMediaUrl } from "./mediaUrl";
 import { Video } from "./types";
 
 const DEBUG_PREFIX = "[media-debug]";
@@ -34,6 +34,12 @@ export type MediaUrlCheck = {
   pointsAtApi: boolean;
 };
 
+export type MediaDebugConfig = {
+  apiBaseUrl: string;
+  mediaApiBaseUrl: string;
+  siteUrl: string;
+};
+
 export type MediaDebugSnapshot = {
   enabled: boolean;
   runtime: "server" | "client";
@@ -53,14 +59,12 @@ export type MediaDebugSnapshot = {
   videoTitle: string;
 };
 
-const buildUrlCheck = (label: string, raw?: string): MediaUrlCheck | null => {
+const buildUrlCheck = (label: string, raw: string | undefined, mediaOrigin: URL | null, siteOrigin: URL | null): MediaUrlCheck | null => {
   const value = (raw || "").trim();
   if (!value || value === "about:blank") return null;
 
   const normalized = normalizeMediaUrl(value);
   const parsed = parseUrl(normalized);
-  const mediaOrigin = getMediaApiOrigin();
-  const siteOrigin = parseUrl(getPublicSiteUrl());
 
   return {
     label,
@@ -101,21 +105,17 @@ export const collectMediaIssues = (checks: MediaUrlCheck[], apiHostMatchesSite: 
 export const buildMediaDebugSnapshot = (
   video: Video,
   playbackSrc: string,
-  rawVideo?: Video
+  rawVideo?: Video,
+  config?: MediaDebugConfig
 ): MediaDebugSnapshot => {
-  const configuredApiUrl = getPublicApiUrl();
-  const configuredSiteUrl = getPublicSiteUrl();
-  const configuredMediaApiUrl = getMediaApiUrl();
-  const apiOrigin = getApiOrigin();
-  const mediaOrigin = getMediaApiOrigin();
-  const metaApiUrl =
-    typeof document !== "undefined"
-      ? document.querySelector('meta[name="api-base-url"]')?.getAttribute("content") || ""
-      : "";
-  const metaMediaApiUrl =
-    typeof document !== "undefined"
-      ? document.querySelector('meta[name="media-api-base-url"]')?.getAttribute("content") || ""
-      : "";
+  const configuredApiUrl = config?.apiBaseUrl ?? getPublicApiUrl();
+  const configuredSiteUrl = config?.siteUrl ?? getPublicSiteUrl();
+  const configuredMediaApiUrl = config?.mediaApiBaseUrl ?? getMediaApiUrl();
+  const metaApiUrl = configuredApiUrl;
+  const metaMediaApiUrl = configuredMediaApiUrl;
+  const apiOrigin = parseUrl(metaApiUrl);
+  const mediaOrigin = parseUrl(metaMediaApiUrl);
+  const siteOrigin = parseUrl(configuredSiteUrl);
 
   let apiHostMatchesSite = false;
   try {
@@ -126,22 +126,22 @@ export const buildMediaDebugSnapshot = (
 
   const source = rawVideo || video;
   const urlChecks = [
-    buildUrlCheck("videoUrl (from API)", source.videoUrl),
-    buildUrlCheck("videoUrl (normalized)", video.videoUrl),
-    buildUrlCheck("previewUrl", source.previewUrl),
-    buildUrlCheck("thumbnail", source.thumbnail),
+    buildUrlCheck("videoUrl (from API)", source.videoUrl, mediaOrigin, siteOrigin),
+    buildUrlCheck("videoUrl (normalized)", video.videoUrl, mediaOrigin, siteOrigin),
+    buildUrlCheck("previewUrl", source.previewUrl, mediaOrigin, siteOrigin),
+    buildUrlCheck("thumbnail", source.thumbnail, mediaOrigin, siteOrigin),
     ...(source.qualityVariants || []).map((variant, index) =>
-      buildUrlCheck(`qualityVariants[${index}] ${variant.label}`, variant.url)
+      buildUrlCheck(`qualityVariants[${index}] ${variant.label}`, variant.url, mediaOrigin, siteOrigin)
     ),
-    buildUrlCheck("playbackSrc", playbackSrc),
+    buildUrlCheck("playbackSrc", playbackSrc, mediaOrigin, siteOrigin),
   ].filter(Boolean) as MediaUrlCheck[];
 
   const issues = collectMediaIssues(urlChecks, apiHostMatchesSite);
 
   return {
     enabled: isMediaDebugEnabled(),
-    runtime: typeof window === "undefined" ? "server" : "client",
-    pageOrigin: typeof window !== "undefined" ? window.location.origin : "(server)",
+    runtime: "client",
+    pageOrigin: configuredSiteUrl,
     configuredApiUrl,
     configuredSiteUrl,
     configuredMediaApiUrl,

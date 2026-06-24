@@ -21,9 +21,19 @@ type VideoJsPlayerProps = {
 type VideoJsPlayerInstance = ReturnType<typeof videojs>;
 
 type VhsXhrOptions = { uri?: string };
-type VhsXhr = { beforeRequest?: (options: VhsXhrOptions) => VhsXhrOptions | void };
+type VhsXhr = {
+  beforeRequest?: (options: VhsXhrOptions) => VhsXhrOptions | void;
+  onRequest?: (options: VhsXhrOptions) => VhsXhrOptions | void;
+};
 
 let vhsMediaRewriteInstalled = false;
+
+const rewriteVhsRequestUri = (options: VhsXhrOptions) => {
+  if (options?.uri) {
+    options.uri = normalizeMediaUrl(options.uri);
+  }
+  return options;
+};
 
 const installVhsMediaUrlRewrite = () => {
   if (vhsMediaRewriteInstalled || typeof window === "undefined") return;
@@ -32,14 +42,13 @@ const installVhsMediaUrlRewrite = () => {
   const xhr = videojsLib.Vhs?.xhr;
   if (!xhr) return;
 
-  const previous = xhr.beforeRequest;
-  xhr.beforeRequest = (options) => {
-    const next = previous ? previous(options) || options : options;
-    if (next?.uri) {
-      next.uri = normalizeMediaUrl(next.uri);
-    }
-    return next;
-  };
+  if (typeof xhr.onRequest === "function") {
+    const previous = xhr.onRequest;
+    xhr.onRequest = (options) => rewriteVhsRequestUri(previous(options) || options);
+  } else if (typeof xhr.beforeRequest === "function") {
+    const previous = xhr.beforeRequest;
+    xhr.beforeRequest = (options) => rewriteVhsRequestUri(previous(options) || options);
+  }
 
   vhsMediaRewriteInstalled = true;
 };
