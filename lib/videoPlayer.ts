@@ -20,19 +20,22 @@ const rewriteVhsUri = (options: VhsXhrOptions) => {
   return options;
 };
 
-/** Rewrite nested HLS playlist/segment URLs to the media API host. */
+/** Rewrite every HLS playlist/segment request (including URLs embedded inside .m3u8). */
 export const installVhsMediaHook = () => {
   if (vhsHookInstalled || typeof window === "undefined") return;
 
   const xhr = (videojs as typeof videojs & { Vhs?: { xhr?: VhsXhr } }).Vhs?.xhr;
   if (!xhr) return;
 
+  const chain =
+    (previous?: (options: VhsXhrOptions) => VhsXhrOptions | void) =>
+    (options: VhsXhrOptions) =>
+      rewriteVhsUri(previous ? previous(options) || options : options);
+
   if (typeof xhr.onRequest === "function") {
-    const previous = xhr.onRequest;
-    xhr.onRequest = (options) => rewriteVhsUri(previous(options) || options);
+    xhr.onRequest = chain(xhr.onRequest);
   } else {
-    const previous = xhr.beforeRequest;
-    xhr.beforeRequest = (options) => rewriteVhsUri(previous ? previous(options) || options : options);
+    xhr.beforeRequest = chain(xhr.beforeRequest);
   }
 
   vhsHookInstalled = true;
