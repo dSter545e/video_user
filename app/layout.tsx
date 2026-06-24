@@ -9,7 +9,7 @@ import MobileGridProvider from "../components/MobileGridProvider";
 import ThemeProvider from "../components/ThemeProvider";
 import SiteAdShell from "../components/SiteAdShell";
 import ThemeInit from "../components/ThemeInit";
-import { getMediaApiUrl, getPublicApiUrl, logApiConfigWarnings } from "../lib/apiConfig";
+import { getMediaApiUrl, getPublicApiUrl } from "../lib/apiConfig";
 import { SEO, absoluteUrl } from "../lib/seo";
 import { getSiteVerificationMetadata } from "../lib/siteVerification";
 
@@ -64,8 +64,6 @@ export default function RootLayout({
 }>) {
   const apiBaseUrl = getPublicApiUrl();
   const mediaApiBaseUrl = getMediaApiUrl();
-
-  logApiConfigWarnings();
 
   return (
     <html

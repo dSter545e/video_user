@@ -6,11 +6,7 @@ import { FiThumbsDown, FiThumbsUp } from "react-icons/fi";
 import VideoPlayerWithAds from "./VideoPlayerWithAds";
 import RelatedVideoItem from "./RelatedVideoItem";
 import { addVideoCommentApi, getRecommendedVideosApi, reactToVideoApi, trackVideoViewApi } from "../lib/api";
-import { getPublicApiUrl } from "../lib/apiConfig";
-import { isMediaDebugEnabled, type MediaDebugConfig } from "../lib/mediaDebug";
 import { Video, VideoComment } from "../lib/types";
-import MediaDebugPanel from "./MediaDebugPanel";
-import { normalizeVideoMedia } from "../lib/mediaUrl";
 import { getVideoPosterImageUrl } from "../lib/videoPoster";
 import { isVideoPlayable, resolveWatchPlaybackSrc } from "../lib/videoPlayback";
 import { getViewerUser } from "../lib/auth";
@@ -20,7 +16,6 @@ import AdSlot, { AdInFeed } from "./AdSlot";
 type VideoWatchClientProps = {
   initialVideo: Video;
   initialComments: VideoComment[];
-  mediaDebugConfig: MediaDebugConfig;
 };
 
 const getUserIdentifier = () => {
@@ -32,20 +27,13 @@ const getUserIdentifier = () => {
   return generated;
 };
 
-export default function VideoWatchClient({
-  initialVideo,
-  initialComments,
-  mediaDebugConfig,
-}: VideoWatchClientProps) {
-  const [video, setVideo] = useState(() => normalizeVideoMedia(initialVideo));
-  const [recommendedVideos, setRecommendedVideos] = useState<Video[]>(
-    () => (initialVideo.recommendedVideos || []).map((item) => normalizeVideoMedia(item))
-  );
+export default function VideoWatchClient({ initialVideo, initialComments }: VideoWatchClientProps) {
+  const [video, setVideo] = useState(initialVideo);
+  const [recommendedVideos, setRecommendedVideos] = useState<Video[]>(initialVideo.recommendedVideos || []);
   const [comments, setComments] = useState(initialComments);
   const [commentText, setCommentText] = useState("");
   const [authorName, setAuthorName] = useState("User");
   const [viewer, setViewer] = useState<ReturnType<typeof getViewerUser>>(null);
-  const [rawApiVideo, setRawApiVideo] = useState<Video | null>(null);
   const lastLoggedWatchSecondRef = useRef(0);
   const previousPlayedSecondsRef = useRef(0);
   const crossedViewThresholdRef = useRef(false);
@@ -81,29 +69,6 @@ export default function VideoWatchClient({
     void loadRecommendations();
   }, [video._id, video.recommendedVideos]);
 
-  useEffect(() => {
-    if (!isMediaDebugEnabled()) return;
-
-    const loadRawApiVideo = async () => {
-      try {
-        const response = await fetch(`${getPublicApiUrl()}/api/videos/${video.slug || video._id}`, {
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          console.warn("[media-debug] raw API fetch failed", response.status, response.statusText);
-          return;
-        }
-        const raw = (await response.json()) as Video;
-        setRawApiVideo(raw);
-        console.log("[media-debug] raw API videoUrl", raw.videoUrl);
-      } catch (error) {
-        console.warn("[media-debug] raw API fetch error", error);
-      }
-    };
-
-    void loadRawApiVideo();
-  }, [video._id, video.slug]);
-
   const tagsText = useMemo(() => (video.tags || []).map((tag) => `#${tag.displayName}`).join(" "), [video.tags]);
   const posterUrl = useMemo(() => getVideoPosterImageUrl(video), [video]);
   const playbackSrc = useMemo(() => resolveWatchPlaybackSrc(video), [video]);
@@ -118,30 +83,33 @@ export default function VideoWatchClient({
     [video.qualityVariants]
   );
 
-  const handlePlayedSeconds = useCallback(async (seconds: number) => {
-    const rounded = Math.round(seconds);
-    if (rounded > 0 && rounded % 10 === 0 && rounded !== lastLoggedWatchSecondRef.current) {
-      lastLoggedWatchSecondRef.current = rounded;
-      emitAnalyticsEvent("video_watch_progress", {
-        videoId: video._id,
-        videoSlug: video.slug || "",
-        watchedSeconds: rounded,
-      });
-    }
-    const previous = previousPlayedSecondsRef.current;
-    if (seconds + 1 < previous) {
-      crossedViewThresholdRef.current = false;
-    }
-    previousPlayedSecondsRef.current = seconds;
+  const handlePlayedSeconds = useCallback(
+    async (seconds: number) => {
+      const rounded = Math.round(seconds);
+      if (rounded > 0 && rounded % 10 === 0 && rounded !== lastLoggedWatchSecondRef.current) {
+        lastLoggedWatchSecondRef.current = rounded;
+        emitAnalyticsEvent("video_watch_progress", {
+          videoId: video._id,
+          videoSlug: video.slug || "",
+          watchedSeconds: rounded,
+        });
+      }
+      const previous = previousPlayedSecondsRef.current;
+      if (seconds + 1 < previous) {
+        crossedViewThresholdRef.current = false;
+      }
+      previousPlayedSecondsRef.current = seconds;
 
-    if (crossedViewThresholdRef.current || seconds < 5) return;
-    const userIdentifier = getUserIdentifier();
-    const result = await trackVideoViewApi(video._id, userIdentifier, seconds);
-    if (result?.counted) {
-      setVideo((prev) => ({ ...prev, viewsCount: result.viewsCount }));
-      crossedViewThresholdRef.current = true;
-    }
-  }, [video._id, video.slug]);
+      if (crossedViewThresholdRef.current || seconds < 5) return;
+      const userIdentifier = getUserIdentifier();
+      const result = await trackVideoViewApi(video._id, userIdentifier, seconds);
+      if (result?.counted) {
+        setVideo((prev) => ({ ...prev, viewsCount: result.viewsCount }));
+        crossedViewThresholdRef.current = true;
+      }
+    },
+    [video._id, video.slug]
+  );
 
   const handleReaction = async (reaction: "like" | "dislike") => {
     const userIdentifier = getUserIdentifier();
@@ -176,13 +144,6 @@ export default function VideoWatchClient({
     <main className="watch-page mx-auto w-full max-w-[1600px]">
       <div className="watch-page__layout flex flex-col lg:flex-row lg:items-start">
         <div className="watch-page__primary min-w-0 lg:w-3/4">
-          <MediaDebugPanel
-            video={video}
-            rawVideo={rawApiVideo || video}
-            playbackSrc={playbackSrc}
-            config={mediaDebugConfig}
-          />
-
           {playable ? (
             <VideoPlayerWithAds
               src={playbackSrc}

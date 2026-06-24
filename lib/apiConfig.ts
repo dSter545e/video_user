@@ -8,14 +8,15 @@ const parseOrigin = (raw: string) => {
   }
 };
 
-/** Public backend origin for JSON API calls (/api/videos, etc.). */
+/** JSON API origin (/api/videos, etc.). */
 export const getPublicApiUrl = () => trimSlash(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000");
 
+/** User-facing site origin. */
 export const getPublicSiteUrl = () => trimSlash(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000");
 
 /**
- * Origin that serves /api/media (HLS). When API + site share one host (reverse proxy),
- * media is usually on api.{domain} — override with NEXT_PUBLIC_MEDIA_API_URL if different.
+ * Origin for /api/media (HLS segments). When API and site share one host, media is usually on api.{domain}.
+ * Override with NEXT_PUBLIC_MEDIA_API_URL when your setup differs.
  */
 export const getMediaApiUrl = () => {
   const explicit = process.env.NEXT_PUBLIC_MEDIA_API_URL?.trim();
@@ -26,30 +27,12 @@ export const getMediaApiUrl = () => {
   const apiOrigin = parseOrigin(apiUrl);
   const siteOrigin = parseOrigin(siteUrl);
 
-  if (!apiOrigin || !siteOrigin) return apiUrl;
-  if (apiOrigin.host !== siteOrigin.host) return apiUrl;
+  if (!apiOrigin || !siteOrigin || apiOrigin.host !== siteOrigin.host) {
+    return apiUrl;
+  }
 
   const baseHost = siteOrigin.hostname.replace(/^www\./i, "");
   if (/^api\./i.test(baseHost)) return apiUrl;
 
   return `${siteOrigin.protocol}//api.${baseHost}`;
-};
-
-export const logApiConfigWarnings = () => {
-  if (typeof window !== "undefined") return;
-
-  try {
-    const apiHost = new URL(getPublicApiUrl()).host;
-    const siteHost = new URL(getPublicSiteUrl()).host;
-    const mediaHost = new URL(getMediaApiUrl()).host;
-
-    if (apiHost === siteHost) {
-      console.warn(
-        `[apiConfig] NEXT_PUBLIC_API_URL and NEXT_PUBLIC_SITE_URL share host (${apiHost}). ` +
-          `Media requests will use ${mediaHost}. Set NEXT_PUBLIC_MEDIA_API_URL or API_PUBLIC_URL on the backend if that is wrong.`
-      );
-    }
-  } catch {
-    // Ignore invalid URL values during local setup.
-  }
 };
