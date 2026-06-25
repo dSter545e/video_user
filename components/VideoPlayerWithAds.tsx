@@ -5,15 +5,11 @@ import { useState } from "react";
 import { useAds } from "./AdProvider";
 import PrerollAd from "./PrerollAd";
 import AdBanner from "./AdBanner";
-import { Skeleton } from "./skeletons/Skeleton";
+import VideoPlayerSkeleton from "./skeletons/VideoPlayerSkeleton";
 
 const VideoJsPlayer = dynamic(() => import("./VideoJsPlayer"), {
   ssr: false,
-  loading: () => (
-    <div className="watch-player-frame flex items-center justify-center bg-black">
-      <Skeleton className="h-full w-full rounded-none" />
-    </div>
-  ),
+  loading: () => <VideoPlayerSkeleton />,
 });
 
 type VideoSource = {

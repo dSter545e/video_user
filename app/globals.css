@@ -972,6 +972,38 @@ body[data-theme="dark"] .watch-player-frame {
   grid-column: 1 / -1;
 }
 
+.watch-player-skeleton__shine {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.1) 45%,
+    rgba(255, 255, 255, 0.03) 90%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.15s ease-in-out infinite;
+}
+
+.watch-player-skeleton .watch-player-skeleton__play,
+.watch-player-skeleton .watch-player-skeleton__progress,
+.watch-player-skeleton .watch-player-skeleton__control {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.2) 45%,
+    rgba(255, 255, 255, 0.08) 90%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.15s ease-in-out infinite;
+}
+
+.watch-player-skeleton__controls {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.35) 55%, transparent 100%);
+}
+
+.watch-page-skeleton__ad {
+  max-width: 100%;
+}
+
 .skeleton {
   background: linear-gradient(
     90deg,
