@@ -54,6 +54,14 @@ export default function VideoPreviewMedia({
     handleTimeUpdate,
   } = preview;
 
+  const handleActivate = (event: { preventDefault: () => void; metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean; button?: number }) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || (typeof event.button === "number" && event.button !== 0)) {
+      return;
+    }
+    event.preventDefault();
+    handleCardInteraction();
+  };
+
   return (
     <Link
       ref={mediaRef}
@@ -61,12 +69,13 @@ export default function VideoPreviewMedia({
       className={className}
       onPointerEnter={handleMediaPointerEnter}
       onPointerLeave={handleMediaPointerLeave}
+      onTouchEnd={(event) => {
+        if (event.changedTouches.length !== 1) return;
+        handleActivate(event);
+      }}
       onClick={(event) => {
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
-          return;
-        }
-        event.preventDefault();
-        handleCardInteraction();
+        if ("ontouchstart" in window) return;
+        handleActivate(event);
       }}
       aria-label={previewActive ? `Previewing ${video.title}` : `Watch ${video.title}`}
     >

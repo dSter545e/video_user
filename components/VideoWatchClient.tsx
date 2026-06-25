@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { FiThumbsDown, FiThumbsUp } from "react-icons/fi";
 import VideoPlayerWithAds from "./VideoPlayerWithAds";
 import RelatedVideoItem from "./RelatedVideoItem";
+import VideoCard from "./VideoCard";
 import { addVideoCommentApi, getRecommendedVideosApi, reactToVideoApi, trackVideoViewApi } from "../lib/api";
 import { Video, VideoComment } from "../lib/types";
+import { normalizeVideoList } from "../lib/mediaUrl";
 import { getVideoPosterImageUrl } from "../lib/videoPoster";
 import { isVideoPlayable, resolveWatchPlaybackSrc } from "../lib/videoPlayback";
 import { getViewerUser } from "../lib/auth";
@@ -29,7 +31,9 @@ const getUserIdentifier = () => {
 
 export default function VideoWatchClient({ initialVideo, initialComments }: VideoWatchClientProps) {
   const [video, setVideo] = useState(initialVideo);
-  const [recommendedVideos, setRecommendedVideos] = useState<Video[]>(initialVideo.recommendedVideos || []);
+  const [recommendedVideos, setRecommendedVideos] = useState<Video[]>(() =>
+    normalizeVideoList(initialVideo.recommendedVideos || [])
+  );
   const [comments, setComments] = useState(initialComments);
   const [commentText, setCommentText] = useState("");
   const [authorName, setAuthorName] = useState("User");
@@ -64,7 +68,7 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
         setRecommendedVideos(data);
         return;
       }
-      setRecommendedVideos(video.recommendedVideos || []);
+      setRecommendedVideos(normalizeVideoList(video.recommendedVideos || []));
     };
     void loadRecommendations();
   }, [video._id, video.recommendedVideos]);
@@ -279,12 +283,15 @@ export default function VideoWatchClient({ initialVideo, initialComments }: Vide
           <aside className="watch-page__sidebar min-w-0 lg:w-1/4">
             <AdSlot slot="watch_before_recommendations" />
             <h2 className="mb-1 text-sm font-semibold">Related videos</h2>
-            <div className="watch-page__related-list">
+            <div className="watch-page__related-list video-grid video-grid--cols-2 grid w-full grid-cols-2 gap-2 md:gap-5 lg:block lg:gap-0">
               {recommendedVideos.map((item, index) => (
-                <div key={item._id}>
-                  <RelatedVideoItem video={item} />
+                <Fragment key={item._id}>
+                  <VideoCard video={item} className="min-w-0 lg:hidden" />
+                  <div className="hidden lg:block">
+                    <RelatedVideoItem video={item} />
+                  </div>
                   <AdInFeed index={index} />
-                </div>
+                </Fragment>
               ))}
             </div>
           </aside>

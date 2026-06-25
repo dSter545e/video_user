@@ -16,6 +16,7 @@ const formatViews = (count?: number) => {
   return `${value} views`;
 };
 
+/** Sidebar related video row (desktop). Mobile/tablet uses VideoCard in the watch page grid. */
 export default function RelatedVideoItem({ video }: RelatedVideoItemProps) {
   const [previewActive, setPreviewActive] = useState(false);
   const href = `/videos/${video.slug || video._id}`;

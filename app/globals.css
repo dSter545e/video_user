@@ -465,9 +465,96 @@ html[data-theme="dark"] .mobile-sidebar-nav__segment-btn--active {
   color: #fff;
 }
 
+.video-js.vjs-layout-mobile .vjs-time-divider,
+.video-js.vjs-layout-mobile .vjs-duration,
+.video-js.vjs-layout-mobile .vjs-current-time,
+.video-js.vjs-layout-mobile .vjs-remaining-time {
+  display: none !important;
+}
+
+@media (max-width: 1023px) {
+  .video-js .vjs-time-divider,
+  .video-js .vjs-duration,
+  .video-js .vjs-current-time,
+  .video-js .vjs-remaining-time {
+    display: none !important;
+  }
+
+  .video-js .vjs-mobile-time {
+    display: flex !important;
+    align-items: center;
+    min-width: 5.5em;
+    padding: 0 0.35rem;
+    font-size: 0.78rem;
+    color: #fff;
+  }
+}
+
+.video-js .vjs-mobile-time {
+  display: none;
+}
+
+.video-js.vjs-layout-mobile .vjs-mobile-time {
+  display: flex !important;
+  align-items: center;
+  min-width: 5.5em;
+  padding: 0 0.35rem;
+  font-size: 0.78rem;
+  color: #fff;
+}
+
+.video-js.vjs-layout-mobile .vjs-mobile-time-display {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.video-js.vjs-layout-mobile .vjs-skip-controls {
+  display: none !important;
+}
+
+.video-js.vjs-layout-mobile .vjs-control-bar {
+  height: 2.75em;
+}
+
+.video-js.vjs-layout-mobile .vjs-quality-select {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.25rem;
+}
+
 .video-js .vjs-fullscreen-control {
   display: flex !important;
   align-items: center;
+}
+
+.video-js .vjs-touch-feedback {
+  position: absolute;
+  top: 50%;
+  z-index: 4;
+  transform: translateY(-50%) scale(0.92);
+  padding: 0.65rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.video-js .vjs-touch-feedback--left {
+  left: 14%;
+}
+
+.video-js .vjs-touch-feedback--right {
+  right: 14%;
+}
+
+.video-js .vjs-touch-feedback--visible {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
 }
 
 .video-player-shell {
@@ -595,6 +682,44 @@ body[data-theme="dark"] .watch-player-frame {
   padding: 1rem 0.75rem 1.5rem;
 }
 
+@media (max-width: 639px) {
+  .watch-page {
+    padding-top: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .watch-page__primary > .watch-player-frame,
+  .watch-page__primary > .watch-player-frame .video-player-with-ads,
+  .watch-page__primary > .watch-player-frame .video-player-shell,
+  .watch-page__primary > .watch-player-frame .video-js {
+    border: none !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  .watch-page__primary > .watch-player-frame {
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: calc(50% - 50vw);
+    aspect-ratio: auto;
+    min-height: clamp(240px, 56vw, 58vh);
+    height: clamp(240px, 56vw, 58vh);
+  }
+
+  .watch-page__details {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  :root[data-theme="dark"] .watch-page__primary > .watch-player-frame,
+  html[data-theme="dark"] .watch-page__primary > .watch-player-frame,
+  body[data-theme="dark"] .watch-page__primary > .watch-player-frame {
+    box-shadow: none !important;
+  }
+}
+
 @media (min-width: 640px) {
   .watch-page {
     padding: 1.25rem 1.25rem 1.75rem;
@@ -654,6 +779,45 @@ body[data-theme="dark"] .watch-player-frame {
 
 .related-video-item {
   color: inherit;
+  min-width: 0;
+}
+
+.watch-page__related-list {
+  width: 100%;
+}
+
+.watch-page__related-list > .listing-in-feed-ad {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1023px) {
+  .watch-page__related-list .video-card {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* One related video: full width (homepage behavior) */
+  .watch-page__related-list:not(:has(.video-card ~ .video-card)) .video-card {
+    grid-column: 1 / -1;
+  }
+
+  .watch-page__related-list.video-grid--cols-2 .video-card:hover {
+    transform: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .watch-page__related-list > .listing-in-feed-ad {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .watch-page__sidebar {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
 }
 
 .related-video-item__body {

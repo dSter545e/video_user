@@ -14,23 +14,32 @@ const formatViews = (count?: number) => {
 
 type VideoCardProps = {
   video: Video;
+  className?: string;
 };
 
-export default function VideoCard({ video }: VideoCardProps) {
+export default function VideoCard({ video, className = "" }: VideoCardProps) {
   const [previewActive, setPreviewActive] = useState(false);
   const videoHref = `/videos/${video.slug || video._id}`;
   const preview = useVideoPreview({ video, videoHref, onPreviewActiveChange: setPreviewActive });
 
   return (
     <article
-      className={`video-card group ${previewActive ? "video-card--previewing" : ""}`}
+      className={`video-card group ${previewActive ? "video-card--previewing" : ""} ${className}`.trim()}
       onContextMenu={preview.handleCardContextMenu}
     >
       <VideoPreviewMedia video={video} preview={preview} />
 
       <div
         className="video-card__body block cursor-pointer"
-        onClick={() => preview.handleCardInteraction()}
+        onTouchEnd={(event) => {
+          if (!("ontouchstart" in window) || event.changedTouches.length !== 1) return;
+          event.preventDefault();
+          preview.handleCardInteraction();
+        }}
+        onClick={() => {
+          if ("ontouchstart" in window) return;
+          preview.handleCardInteraction();
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();

@@ -3,8 +3,11 @@ import { normalizeMediaUrl } from "./mediaUrl";
 
 const isHlsSource = (url: string) => /\.m3u8(\?|$)/i.test(url);
 
-export const isPlayablePreviewUrl = (url?: string) =>
-  Boolean(url && url !== "about:blank" && url.startsWith("http"));
+export const isPlayablePreviewUrl = (url?: string) => {
+  const trimmed = url?.trim();
+  if (!trimmed || trimmed === "about:blank") return false;
+  return trimmed.startsWith("http") || trimmed.startsWith("/api/media/");
+};
 
 /** Prefer a tiny MP4 preview clip, then progressive video, then the lowest HLS variant. */
 export const pickPreviewSource = (video: Video) => {

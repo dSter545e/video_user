@@ -6,9 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildPlayerSources,
   buildQualityOptions,
+  getVhsPlaybackOptions,
   installVhsMediaHook,
   type PlayerSource,
 } from "../lib/videoPlayer";
+import { VIDEO_PREVIEW_CLAIM_EVENT, type VideoPreviewClaimDetail } from "../lib/videoPreviewCoordinator";
 
 type VideoJsPlayerProps = {
   src: string;
@@ -21,6 +23,198 @@ type VideoJsPlayerInstance = ReturnType<typeof videojs>;
 
 const isImagePoster = (url?: string) => Boolean(url && /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(url));
 
+/** Mobile + tablet: single combined time display (below Tailwind `lg`). */
+const COMPACT_CONTROLS_MAX_WIDTH = 1023;
+
+const useCompactPlayerControls = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia(`(max-width: ${COMPACT_CONTROLS_MAX_WIDTH}px)`).matches;
+
+const formatPlaybackTime = (seconds: number) => {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(secs)}` : `${minutes}:${pad(secs)}`;
+};
+
+const getMobileTimeEl = (player: VideoJsPlayerInstance) => {
+  const controlBarEl = player.getChild("controlBar")?.el();
+  if (!controlBarEl) return null;
+
+  let mobileTime = controlBarEl.querySelector(".vjs-mobile-time") as HTMLElement | null;
+  if (!mobileTime) {
+    mobileTime = document.createElement("div");
+    mobileTime.className = "vjs-mobile-time vjs-control";
+    mobileTime.innerHTML = '<span class="vjs-mobile-time-display" aria-live="off">0:00 / 0:00</span>';
+
+    const progressControl = controlBarEl.querySelector(".vjs-progress-control");
+    if (progressControl?.nextSibling) {
+      controlBarEl.insertBefore(mobileTime, progressControl.nextSibling);
+    } else {
+      controlBarEl.appendChild(mobileTime);
+    }
+  }
+
+  return mobileTime.querySelector(".vjs-mobile-time-display") as HTMLElement | null;
+};
+
+const updateMobileTimeDisplay = (player: VideoJsPlayerInstance) => {
+  const el = getMobileTimeEl(player);
+  if (!el) return;
+
+  const current = player.currentTime() || 0;
+  const duration = player.duration() || 0;
+  el.textContent = `${formatPlaybackTime(current)} / ${formatPlaybackTime(duration)}`;
+};
+
+const applyViewportControlLayout = (player: VideoJsPlayerInstance) => {
+  const controlBar = player.getChild("controlBar");
+  const remaining = controlBar?.getChild("RemainingTimeDisplay");
+  if (controlBar && remaining) controlBar.removeChild(remaining);
+
+  const root = player.el() as HTMLElement | undefined;
+  if (!root) return;
+
+  const compact = useCompactPlayerControls();
+  root.classList.toggle("vjs-layout-mobile", compact);
+  if (compact) getMobileTimeEl(player);
+  updateMobileTimeDisplay(player);
+};
+
+const SEEK_STEP_SECONDS = 10;
+const DOUBLE_TAP_WINDOW_MS = 280;
+const TAP_MOVE_TOLERANCE_PX = 14;
+
+const seekBy = (player: VideoJsPlayerInstance, delta: number) => {
+  if (!player || (typeof player.isDisposed === "function" && player.isDisposed())) return;
+  const current = player.currentTime() || 0;
+  const duration = player.duration() || current + Math.abs(delta);
+  player.currentTime(Math.min(duration, Math.max(0, current + delta)));
+};
+
+const togglePlayPause = (player: VideoJsPlayerInstance) => {
+  if (!player || (typeof player.isDisposed === "function" && player.isDisposed())) return;
+  if (player.paused()) void player.play();
+  else player.pause();
+};
+
+const showTouchFeedback = (root: HTMLElement, side: "left" | "right") => {
+  root.querySelector(".vjs-touch-feedback")?.remove();
+
+  const el = document.createElement("div");
+  el.className = `vjs-touch-feedback vjs-touch-feedback--${side}`;
+  el.setAttribute("aria-hidden", "true");
+  el.textContent = side === "left" ? "« 10s" : "10s »";
+  root.appendChild(el);
+
+  requestAnimationFrame(() => el.classList.add("vjs-touch-feedback--visible"));
+  window.setTimeout(() => el.remove(), 550);
+};
+
+const attachTouchGestures = (player: VideoJsPlayerInstance) => {
+  const root = player.el() as HTMLElement | undefined;
+  if (!root || root.dataset.touchGesturesBound === "true") return;
+  root.dataset.touchGesturesBound = "true";
+
+  let lastTapAt = 0;
+  let lastTapX = 0;
+  let singleTapTimer: ReturnType<typeof setTimeout> | null = null;
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  const clearSingleTapTimer = () => {
+    if (!singleTapTimer) return;
+    clearTimeout(singleTapTimer);
+    singleTapTimer = null;
+  };
+
+  const isInteractiveTarget = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+    return Boolean(
+      target.closest(
+        ".vjs-control-bar, .vjs-big-play-button, .vjs-quality-control, .vjs-quality-select, button, select, input, a"
+      )
+    );
+  };
+
+  const getRelativeX = (clientX: number) => {
+    const rect = root.getBoundingClientRect();
+    if (!rect.width) return 0.5;
+    return (clientX - rect.left) / rect.width;
+  };
+
+  const handleTap = (clientX: number) => {
+    const now = Date.now();
+    const x = getRelativeX(clientX);
+    const isDoubleTap = now - lastTapAt <= DOUBLE_TAP_WINDOW_MS && Math.abs(clientX - lastTapX) < 48;
+
+    clearSingleTapTimer();
+
+    if (isDoubleTap) {
+      lastTapAt = 0;
+      if (x < 0.4) {
+        seekBy(player, -SEEK_STEP_SECONDS);
+        showTouchFeedback(root, "left");
+      } else if (x > 0.6) {
+        seekBy(player, SEEK_STEP_SECONDS);
+        showTouchFeedback(root, "right");
+      }
+      return;
+    }
+
+    lastTapAt = now;
+    lastTapX = clientX;
+
+    singleTapTimer = setTimeout(() => {
+      singleTapTimer = null;
+      togglePlayPause(player);
+    }, DOUBLE_TAP_WINDOW_MS);
+  };
+
+  const onTouchStart = (event: TouchEvent) => {
+    if (event.touches.length !== 1) {
+      clearSingleTapTimer();
+      return;
+    }
+    touchStartX = event.touches[0].clientX;
+    touchStartY = event.touches[0].clientY;
+  };
+
+  const onTouchEnd = (event: TouchEvent) => {
+    if (isInteractiveTarget(event.target)) return;
+    if (event.changedTouches.length !== 1) return;
+
+    const touch = event.changedTouches[0];
+    const dx = Math.abs(touch.clientX - touchStartX);
+    const dy = Math.abs(touch.clientY - touchStartY);
+    if (dx > TAP_MOVE_TOLERANCE_PX || dy > TAP_MOVE_TOLERANCE_PX) return;
+
+    event.preventDefault();
+    handleTap(touch.clientX);
+  };
+
+  const onClick = (event: MouseEvent) => {
+    if (isInteractiveTarget(event.target)) return;
+    if ("ontouchstart" in window) return;
+    handleTap(event.clientX);
+  };
+
+  root.addEventListener("touchstart", onTouchStart, { passive: true });
+  root.addEventListener("touchend", onTouchEnd, { passive: false });
+  root.addEventListener("click", onClick);
+
+  player.on("dispose", () => {
+    clearSingleTapTimer();
+    root.removeEventListener("touchstart", onTouchStart);
+    root.removeEventListener("touchend", onTouchEnd);
+    root.removeEventListener("click", onClick);
+    delete root.dataset.touchGesturesBound;
+  });
+};
+
 const attachSkipControls = (player: VideoJsPlayerInstance) => {
   const controlBarEl = player.getChild("controlBar")?.el();
   if (!controlBarEl) return;
@@ -30,12 +224,7 @@ const attachSkipControls = (player: VideoJsPlayerInstance) => {
   const wrapper = document.createElement("div");
   wrapper.className = "vjs-skip-controls vjs-control";
 
-  const seek = (delta: number) => {
-    if (!player || (typeof player.isDisposed === "function" && player.isDisposed())) return;
-    const current = player.currentTime() || 0;
-    const duration = player.duration() || current + Math.abs(delta);
-    player.currentTime(Math.min(duration, Math.max(0, current + delta)));
-  };
+  const seek = (delta: number) => seekBy(player, delta);
 
   const back = document.createElement("button");
   back.type = "button";
@@ -71,6 +260,10 @@ const attachSkipControls = (player: VideoJsPlayerInstance) => {
 const attachTimeControls = (player: VideoJsPlayerInstance) => {
   const controlBar = player.getChild("controlBar");
   if (!controlBar) return;
+
+  const remaining = controlBar.getChild("RemainingTimeDisplay");
+  if (remaining) controlBar.removeChild(remaining);
+
   if (!controlBar.getChild("CurrentTimeDisplay")) controlBar.addChild("CurrentTimeDisplay", {}, 4);
   if (!controlBar.getChild("TimeDivider")) controlBar.addChild("TimeDivider", {}, 5);
   if (!controlBar.getChild("DurationDisplay")) controlBar.addChild("DurationDisplay", {}, 6);
@@ -151,13 +344,35 @@ const hidePoster = (player: VideoJsPlayerInstance) => {
 };
 
 const bindLayoutEvents = (player: VideoJsPlayerInstance) => {
-  const refresh = () => fixWatchLayout(player);
+  const refresh = () => {
+    fixWatchLayout(player);
+    applyViewportControlLayout(player);
+  };
   player.on("loadedmetadata", refresh);
   player.on("loadeddata", refresh);
   player.on("posterchange", refresh);
   player.on("ready", refresh);
+  player.on("durationchange", () => updateMobileTimeDisplay(player));
   player.on("play", () => hidePoster(player));
   player.on("playing", () => hidePoster(player));
+};
+
+const bindViewportControlEvents = (player: VideoJsPlayerInstance) => {
+  const onViewportChange = () => applyViewportControlLayout(player);
+  const onCardPreviewClaim = (event: Event) => {
+    const ownerId = (event as CustomEvent<VideoPreviewClaimDetail>).detail?.ownerId;
+    if (!ownerId || !player || (typeof player.isDisposed === "function" && player.isDisposed())) return;
+    if (!player.paused()) player.pause();
+  };
+
+  window.addEventListener("resize", onViewportChange);
+  window.addEventListener("orientationchange", onViewportChange);
+  window.addEventListener(VIDEO_PREVIEW_CLAIM_EVENT, onCardPreviewClaim);
+  player.on("dispose", () => {
+    window.removeEventListener("resize", onViewportChange);
+    window.removeEventListener("orientationchange", onViewportChange);
+    window.removeEventListener(VIDEO_PREVIEW_CLAIM_EVENT, onCardPreviewClaim);
+  });
 };
 
 export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPlayedSeconds }: VideoJsPlayerProps) {
@@ -194,15 +409,24 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
         poster: posterUrl,
         sources,
         playsinline: true,
-        html5: { vhs: { withCredentials: false } },
+        userActions: {
+          click: false,
+          doubleClick: false,
+        },
+        html5: { vhs: getVhsPlaybackOptions() },
         fullscreen: { options: { navigationUI: "hide" } },
       });
 
       playerRef.current = player;
+      player.ready(() => {
+        attachTimeControls(player);
+        attachSkipControls(player);
+        attachTouchGestures(player);
+        applyViewportControlLayout(player);
+      });
       fixWatchLayout(player);
       bindLayoutEvents(player);
-      attachTimeControls(player);
-      attachSkipControls(player);
+      bindViewportControlEvents(player);
 
       const controlBar = player.getChild("controlBar");
       if (controlBar && !controlBar.getChild("FullscreenToggle")) {
@@ -211,6 +435,7 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
 
       attachQualityControl(player, qualityOptions, selectedSource, setSelectedSource);
       player.on("timeupdate", () => {
+        updateMobileTimeDisplay(player);
         onPlayedSecondsRef.current?.(player.currentTime() || 0);
       });
       return;
@@ -229,6 +454,7 @@ export default function VideoJsPlayer({ src, poster, qualityVariants = [], onPla
     });
     attachTimeControls(player);
     attachQualityControl(player, qualityOptions, selectedSource, setSelectedSource);
+    applyViewportControlLayout(player);
   }, [src, posterUrl, sources, qualityOptions, selectedSource]);
 
   useEffect(() => {

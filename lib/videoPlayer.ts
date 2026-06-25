@@ -46,12 +46,68 @@ const isHls = (url: string) => /\.m3u8(\?|$)/i.test(url);
 export const getPlayerMimeType = (url: string) =>
   isHls(url) ? "application/x-mpegURL" : "video/mp4";
 
-const isSlowNetwork = () => {
-  if (typeof navigator === "undefined") return false;
-  const conn = (navigator as Navigator & { connection?: { effectiveType?: string; downlink?: number } }).connection;
-  if (!conn) return false;
-  if (conn.effectiveType && ["slow-2g", "2g", "3g"].includes(conn.effectiveType)) return true;
-  return typeof conn.downlink === "number" && conn.downlink > 0 && conn.downlink < 1.5;
+type NetworkTier = "slow" | "good" | "unknown";
+
+type NavigatorConnection = {
+  effectiveType?: string;
+  downlink?: number;
+  saveData?: boolean;
+};
+
+const readConnection = (): NavigatorConnection | null => {
+  if (typeof navigator === "undefined") return null;
+  return (navigator as Navigator & { connection?: NavigatorConnection }).connection ?? null;
+};
+
+/** Classify connection for adaptive quality (HLS + progressive fallback). */
+export const getNetworkTier = (): NetworkTier => {
+  const conn = readConnection();
+  if (!conn) return "unknown";
+  if (conn.saveData) return "slow";
+
+  if (conn.effectiveType) {
+    if (["slow-2g", "2g", "3g"].includes(conn.effectiveType)) return "slow";
+    if (conn.effectiveType === "4g") return "good";
+  }
+
+  if (typeof conn.downlink === "number" && conn.downlink > 0) {
+    if (conn.downlink < 1.5) return "slow";
+    if (conn.downlink >= 2) return "good";
+  }
+
+  return "unknown";
+};
+
+export const isSlowNetwork = () => getNetworkTier() === "slow";
+
+const megabitsToBitsPerSecond = (mbps: number) => Math.round(mbps * 1_000_000);
+
+/**
+ * Video.js VHS (HLS) options tuned for quality on good connections.
+ * Slow networks still start low to avoid rebuffering.
+ */
+export const getVhsPlaybackOptions = () => {
+  const tier = getNetworkTier();
+  const conn = readConnection();
+  const slow = tier === "slow";
+  const preferHighQuality = !slow;
+
+  let bandwidth: number | undefined;
+  if (conn?.downlink && conn.downlink > 0) {
+    bandwidth = megabitsToBitsPerSecond(conn.downlink * (slow ? 0.7 : 0.95));
+  } else if (preferHighQuality) {
+    bandwidth = megabitsToBitsPerSecond(8);
+  } else {
+    bandwidth = megabitsToBitsPerSecond(1);
+  }
+
+  return {
+    withCredentials: false,
+    enableLowInitialPlaylist: slow,
+    limitRenditionByPlayerDimensions: slow,
+    useBandwidthFromLocalStorage: true,
+    bandwidth,
+  };
 };
 
 export const buildQualityOptions = (src: string, variants: PlayerSource[] = []): PlayerSource[] => {
